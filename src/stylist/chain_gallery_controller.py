@@ -18,7 +18,7 @@ from PySide6.QtWidgets import QFileDialog, QMessageBox
 
 from src.core.chain_models import BuiltinChainModel
 from src.core.style_chain_schema import load_style_chain, dump_style_chain, StyleChain, ChainStep
-from src.stylist._utils import _get_project_root
+from src.stylist._utils import _get_bundled_data_root, _get_project_root
 
 if TYPE_CHECKING:
     from src.stylist.main_window import MainWindow
@@ -294,7 +294,7 @@ class ChainGalleryController:
         ) == QMessageBox.Yes  # type: ignore[attr-defined]
 
         if want_preview:
-            sample = root / "sample_images" / "arch.png"
+            sample = _get_bundled_data_root() / "sample_images" / "arch.png"
             if sample.exists():
                 try:
                     img = PILImage.open(str(sample)).convert("RGB")

@@ -15,3 +15,15 @@ def _get_project_root() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys.executable).parent
     return Path(__file__).resolve().parent.parent.parent
+
+
+def _get_bundled_data_root() -> Path:
+    """Return the root for data files bundled via PyInstaller ``datas``.
+
+    In PyInstaller 6.x onedir builds all ``datas`` land in ``_internal/``
+    (i.e. ``sys._MEIPASS``).  In development this is the same as the project
+    root so both paths work transparently.
+    """
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    return Path(__file__).resolve().parent.parent.parent
