@@ -342,5 +342,46 @@ class ChainGalleryController:
         self: "MainWindow",
         NameChainDialog,  # type: ignore[misc]
     ) -> None:
-        """Save-from-log path — implemented in Phase D."""
-        pass
+        """Save the current style log as a new user chain."""
+        suggested = _suggest_name_from_log(self._style_log)
+        name_dlg = NameChainDialog(suggested_name=suggested, parent=self)  # type: ignore[call-arg]
+        if name_dlg.exec() != NameChainDialog.Accepted:
+            return
+
+        chain_name: str = name_dlg.chain_name()
+        chain_desc: str = name_dlg.chain_description()
+        chain_id: str = _make_chain_id(chain_name)
+
+        root = _get_project_root()
+        chain_dir = root / "style_chains" / "user" / chain_id
+        chain_dir.mkdir(parents=True, exist_ok=True)
+
+        # Write YAML from current style log
+        (chain_dir / "chain.yml").write_text(
+            self._format_style_chain(), encoding="utf-8"  # type: ignore[attr-defined]
+        )
+
+        # Preview from _styled_photo (no popup for save-from-log)
+        preview_path = chain_dir / "preview.jpg"
+        if self._styled_photo is not None:  # type: ignore[attr-defined]
+            _save_preview(self._styled_photo, preview_path)  # type: ignore[attr-defined]
+        else:
+            _save_placeholder_preview(preview_path)
+
+        chain_model = BuiltinChainModel(
+            id=chain_id,
+            name=chain_name,
+            description=chain_desc,
+            chain_path=f"style_chains/user/{chain_id}/chain.yml",
+            preview_path=f"style_chains/user/{chain_id}/preview.jpg",
+            step_count=len(self._style_log),  # type: ignore[attr-defined]
+            is_builtin=False,
+        )
+        try:
+            self._chain_registry.add_user_chain(chain_model)  # type: ignore[attr-defined]
+        except ValueError as exc:
+            QMessageBox.warning(self, "Add Chain", str(exc))  # type: ignore[call-arg]
+            return
+
+        self.chain_gallery.refresh()  # type: ignore[attr-defined]
+        self._status.showMessage(f"Chain saved: {chain_name}")  # type: ignore[attr-defined]

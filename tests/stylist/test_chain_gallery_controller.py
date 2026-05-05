@@ -527,3 +527,129 @@ class TestImportYamlChain:
             window._add_chain_from_yaml(object)
 
         assert chain_registry.list_chains() == []
+
+
+# ---------------------------------------------------------------------------
+# Phase D — _add_chain_from_log
+# ---------------------------------------------------------------------------
+
+class TestAddChainFromLog:
+    def _make_window_with_log(
+        self, qtbot, tmp_path: Path
+    ) -> tuple[MainWindow, BuiltinChainRegistry]:
+        """Window with one registered style and a non-empty style log."""
+        name = "Ukiyo-e"
+        sid = "ukiyo-e"
+        preview = tmp_path / f"{sid}_preview.jpg"
+        _dummy_image().save(preview)
+        style = StyleModel(
+            id=sid, name=name,
+            model_path=str(tmp_path / f"{sid}.onnx"),
+            preview_path=str(preview),
+        )
+        registry = StyleRegistry(catalog_path=tmp_path / "catalog.json")
+        registry.add(style)
+
+        sys_catalog = tmp_path / "chain_catalog.json"
+        user_catalog = tmp_path / "user_catalog.json"
+        ChainStore(sys_catalog).save([])
+        chain_registry = BuiltinChainRegistry(
+            catalog_path=sys_catalog,
+            user_catalog_path=user_catalog,
+        )
+
+        engine = StyleTransferEngine()
+        with (
+            patch("src.core.engine._ORT_AVAILABLE", True),
+            patch("src.core.engine.ort") as mock_ort,
+            patch.object(Path, "exists", return_value=True),
+        ):
+            mock_ort.InferenceSession.return_value = make_mock_session()
+            engine.load_model(sid, Path("dummy/model.onnx"))
+
+        window = MainWindow(
+            registry=registry,
+            engine=engine,
+            photo_manager=PhotoManager(),
+            settings=AppSettings(),
+            chain_registry=chain_registry,
+        )
+        qtbot.addWidget(window)
+
+        # Populate style_log
+        window._style_log = [{"style": "Ukiyo-e", "strength": 100}]
+
+        return window, chain_registry
+
+    def _fake_name_dialog(self, name: str):
+        from src.stylist.widgets.name_chain_dialog import NameChainDialog
+
+        class _FakeNameDialog:
+            Accepted = NameChainDialog.Accepted
+
+            def __init__(self, **kwargs):
+                pass
+
+            def exec(self):
+                return self.Accepted
+
+            def chain_name(self):
+                return name
+
+            def chain_description(self):
+                return name
+
+        return _FakeNameDialog
+
+    def test_add_chain_from_log_saves_chain(
+        self, qtbot, tmp_path: Path
+    ) -> None:
+        window, chain_registry = self._make_window_with_log(qtbot, tmp_path)
+
+        with patch("src.stylist.chain_gallery_controller._get_project_root",
+                   return_value=tmp_path):
+            window._add_chain_from_log(self._fake_name_dialog("Ukiyo-e Log"))
+
+        assert any(c.id == "ukiyo_e_log" for c in chain_registry.list_chains())
+        chain_dir = tmp_path / "style_chains" / "user" / "ukiyo_e_log"
+        assert (chain_dir / "chain.yml").exists()
+        assert (chain_dir / "preview.jpg").exists()
+
+    def test_add_chain_from_log_cancelled_does_nothing(
+        self, qtbot, tmp_path: Path
+    ) -> None:
+        window, chain_registry = self._make_window_with_log(qtbot, tmp_path)
+
+        from src.stylist.widgets.name_chain_dialog import NameChainDialog
+
+        class _CancelDialog:
+            Accepted = NameChainDialog.Accepted
+
+            def __init__(self, **kwargs):
+                pass
+
+            def exec(self):
+                return NameChainDialog.Rejected
+
+        with patch("src.stylist.chain_gallery_controller._get_project_root",
+                   return_value=tmp_path):
+            window._add_chain_from_log(_CancelDialog)
+
+        assert chain_registry.list_chains() == []
+
+    def test_add_chain_from_log_uses_styled_photo(
+        self, qtbot, tmp_path: Path
+    ) -> None:
+        """When _styled_photo is set, preview.jpg should not be placeholder grey."""
+        window, chain_registry = self._make_window_with_log(qtbot, tmp_path)
+        window._styled_photo = _dummy_image(64)
+
+        with patch("src.stylist.chain_gallery_controller._get_project_root",
+                   return_value=tmp_path):
+            window._add_chain_from_log(self._fake_name_dialog("MySnap"))
+
+        chain_dir = tmp_path / "style_chains" / "user" / "mysnap"
+        assert (chain_dir / "preview.jpg").exists()
+        from PIL import Image as PILImage
+        img = PILImage.open(chain_dir / "preview.jpg")
+        assert img.width == img.height  # square after center-crop
