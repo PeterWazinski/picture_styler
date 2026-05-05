@@ -373,3 +373,157 @@ class TestDeleteUserChain:
 
         assert chain_dir.exists()
         assert any(c.id == "my-chain" for c in window._chain_registry.list_chains())
+
+
+# ---------------------------------------------------------------------------
+# Phase C — _add_chain_from_yaml helpers
+# ---------------------------------------------------------------------------
+
+class TestMakeChainId:
+    def test_simple(self) -> None:
+        from src.stylist.chain_gallery_controller import _make_chain_id
+        assert _make_chain_id("My Chain") == "my_chain"
+
+    def test_special_chars_replaced(self) -> None:
+        from src.stylist.chain_gallery_controller import _make_chain_id
+        assert _make_chain_id("A + B") == "a_b"
+
+    def test_empty_fallback(self) -> None:
+        from src.stylist.chain_gallery_controller import _make_chain_id
+        assert _make_chain_id("   ") == "chain"
+
+
+class TestCenterCropToSquare:
+    def test_square_unchanged(self) -> None:
+        from PIL import Image
+        from src.stylist.chain_gallery_controller import _center_crop_to_square
+        img = Image.new("RGB", (100, 100))
+        result = _center_crop_to_square(img)
+        assert result.size == (100, 100)
+
+    def test_landscape_cropped(self) -> None:
+        from PIL import Image
+        from src.stylist.chain_gallery_controller import _center_crop_to_square
+        img = Image.new("RGB", (200, 100))
+        result = _center_crop_to_square(img)
+        assert result.size == (100, 100)
+
+    def test_portrait_cropped(self) -> None:
+        from PIL import Image
+        from src.stylist.chain_gallery_controller import _center_crop_to_square
+        img = Image.new("RGB", (80, 160))
+        result = _center_crop_to_square(img)
+        assert result.size == (80, 80)
+
+
+class TestImportYamlChain:
+    def _make_window_for_import(
+        self, qtbot, tmp_path: Path
+    ) -> tuple[MainWindow, BuiltinChainRegistry]:
+        """Window with Ukiyo-e style + user catalog."""
+        name = "Ukiyo-e"
+        sid = "ukiyo-e"
+        preview = tmp_path / f"{sid}_preview.jpg"
+        _dummy_image().save(preview)
+        style = StyleModel(
+            id=sid, name=name,
+            model_path=str(tmp_path / f"{sid}.onnx"),
+            preview_path=str(preview),
+        )
+        registry = StyleRegistry(catalog_path=tmp_path / "catalog.json")
+        registry.add(style)
+
+        sys_catalog = tmp_path / "chain_catalog.json"
+        user_catalog = tmp_path / "user_catalog.json"
+        ChainStore(sys_catalog).save([])
+        chain_registry = BuiltinChainRegistry(
+            catalog_path=sys_catalog,
+            user_catalog_path=user_catalog,
+        )
+
+        engine = StyleTransferEngine()
+        with (
+            patch("src.core.engine._ORT_AVAILABLE", True),
+            patch("src.core.engine.ort") as mock_ort,
+            patch.object(Path, "exists", return_value=True),
+        ):
+            mock_ort.InferenceSession.return_value = make_mock_session()
+            engine.load_model(sid, Path("dummy/model.onnx"))
+
+        window = MainWindow(
+            registry=registry,
+            engine=engine,
+            photo_manager=PhotoManager(),
+            settings=AppSettings(),
+            chain_registry=chain_registry,
+        )
+        qtbot.addWidget(window)
+        return window, chain_registry
+
+    def test_import_yaml_adds_chain_to_registry(
+        self, qtbot, tmp_path: Path
+    ) -> None:
+        window, chain_registry = self._make_window_for_import(qtbot, tmp_path)
+
+        # Write a valid YAML in tmp_path
+        yml_path = tmp_path / "my_style.yml"
+        _write_chain_yml(yml_path, [{"style": "Ukiyo-e", "strength": 100}])
+
+        from src.stylist.widgets.name_chain_dialog import NameChainDialog
+
+        class _FakeNameDialog:
+            Accepted = NameChainDialog.Accepted
+
+            def __init__(self, **kwargs):
+                pass
+
+            def exec(self):
+                return self.Accepted
+
+            def chain_name(self):
+                return "My Style"
+
+            def chain_description(self):
+                return "My Style"
+
+        with (
+            patch("src.stylist.chain_gallery_controller.QFileDialog.getOpenFileName",
+                  return_value=(str(yml_path), "")),
+            patch("src.stylist.chain_gallery_controller.QMessageBox.question",
+                  return_value=QMessageBox.No),  # No preview
+            patch("src.stylist.chain_gallery_controller._get_project_root",
+                  return_value=tmp_path),
+        ):
+            window._add_chain_from_yaml(_FakeNameDialog)
+
+        assert any(c.id == "my_style" for c in chain_registry.list_chains())
+
+    def test_import_yaml_unknown_style_shows_error(
+        self, qtbot, tmp_path: Path
+    ) -> None:
+        window, _ = self._make_window_for_import(qtbot, tmp_path)
+
+        yml_path = tmp_path / "bad.yml"
+        _write_chain_yml(yml_path, [{"style": "Ghost", "strength": 100}])
+
+        with (
+            patch("src.stylist.chain_gallery_controller.QFileDialog.getOpenFileName",
+                  return_value=(str(yml_path), "")),
+            patch("src.stylist.chain_gallery_controller.QMessageBox.critical") as mock_crit,
+            patch("src.stylist.chain_gallery_controller._get_project_root",
+                  return_value=tmp_path),
+        ):
+            window._add_chain_from_yaml(object)  # NameChainDialog won't be reached
+
+        mock_crit.assert_called_once()
+
+    def test_import_yaml_no_file_selected_does_nothing(
+        self, qtbot, tmp_path: Path
+    ) -> None:
+        window, chain_registry = self._make_window_for_import(qtbot, tmp_path)
+
+        with patch("src.stylist.chain_gallery_controller.QFileDialog.getOpenFileName",
+                   return_value=("", "")):
+            window._add_chain_from_yaml(object)
+
+        assert chain_registry.list_chains() == []

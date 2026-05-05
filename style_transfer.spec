@@ -36,6 +36,8 @@ a = Analysis(
         # them into the output directory after the build so users can add new
         # styles / chains by dropping a folder + updating catalog.json
         # without recompiling.
+        # sample_images/arch.png is used for preview generation of imported chains
+        ("sample_images/arch.png", "sample_images"),
         *ort_datas,
     ],
     hiddenimports=[

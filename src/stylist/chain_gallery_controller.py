@@ -6,20 +6,71 @@ Mixed into :class:`src.stylist.main_window.MainWindow`.
 """
 from __future__ import annotations
 
+import io
 import logging
+import re
 import shutil
+from pathlib import Path
 from typing import TYPE_CHECKING
 
-from PySide6.QtWidgets import QMessageBox
+from PIL import Image as PILImage
+from PySide6.QtWidgets import QFileDialog, QMessageBox
 
 from src.core.chain_models import BuiltinChainModel
-from src.core.style_chain_schema import load_style_chain
+from src.core.style_chain_schema import load_style_chain, dump_style_chain, StyleChain, ChainStep
 from src.stylist._utils import _get_project_root
 
 if TYPE_CHECKING:
     from src.stylist.main_window import MainWindow
 
 logger: logging.Logger = logging.getLogger(__name__)
+
+
+def _make_chain_id(name: str) -> str:
+    """Convert a display name to a unique-friendly slug, e.g. 'My Chain' → 'my_chain'."""
+    slug = name.strip().lower()
+    slug = re.sub(r"[^a-z0-9]+", "_", slug)
+    return slug.strip("_") or "chain"
+
+
+def _center_crop_to_square(img: "PILImage.Image") -> "PILImage.Image":
+    """Crop *img* to a centered square by trimming the longer axis."""
+    w, h = img.size
+    if w == h:
+        return img
+    side = min(w, h)
+    left = (w - side) // 2
+    top = (h - side) // 2
+    return img.crop((left, top, left + side, top + side))
+
+
+def _save_preview(img: "PILImage.Image", dest: Path, size: int = 256) -> None:
+    """Center-crop, resize to *size* × *size*, and save as JPEG."""
+    square = _center_crop_to_square(img)
+    thumb = square.resize((size, size), PILImage.LANCZOS)
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    thumb.save(str(dest), "JPEG", quality=85)
+
+
+def _save_placeholder_preview(dest: Path, size: int = 256) -> None:
+    """Save a solid grey placeholder JPEG at *dest*."""
+    placeholder = PILImage.new("RGB", (size, size), color=(100, 100, 100))
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    placeholder.save(str(dest), "JPEG", quality=85)
+
+
+def _suggest_name_from_log(style_log: list[dict]) -> str:
+    """Build 'A + B + C + …' from the style log (max 3 unique names)."""
+    seen: list[str] = []
+    for entry in style_log:
+        name = str(entry.get("style", ""))
+        if name and name not in seen:
+            seen.append(name)
+    truncated = seen[:3]
+    result = " + ".join(truncated)
+    if len(seen) > 3:
+        result += " + \u2026"
+    return result
 
 
 class ChainGalleryController:
@@ -151,12 +202,145 @@ class ChainGalleryController:
         self._status.showMessage(f"Chain deleted: {chain.name}")
 
     # ------------------------------------------------------------------
-    # Add (implemented in Phase C/D)
+    # Add
     # ------------------------------------------------------------------
 
     def _on_add_chain_requested(  # type: ignore[misc]
         self: "MainWindow",
     ) -> None:
-        """Open AddChainDialog — implemented in Phase C/D."""
-        # Placeholder until Phase C/D implementation is in place.
+        """Open AddChainDialog; route to import-YAML or save-from-log."""
+        from src.stylist.widgets.add_chain_dialog import AddChainDialog
+        from src.stylist.widgets.name_chain_dialog import NameChainDialog
+
+        log_summary = ""
+        log_empty = not bool(self._style_log)
+        if not log_empty:
+            log_summary = "  →  ".join(
+                f"{e['style']} {e['strength']} %"
+                for e in self._style_log
+            )
+
+        dlg = AddChainDialog(
+            style_log_summary=log_summary,
+            log_empty=log_empty,
+            parent=self,
+        )
+        if dlg.exec() != AddChainDialog.Accepted:
+            return
+
+        if dlg.selected_source() == AddChainDialog.SOURCE_IMPORT_YAML:
+            self._add_chain_from_yaml(NameChainDialog)
+        else:
+            self._add_chain_from_log(NameChainDialog)
+
+    def _add_chain_from_yaml(  # type: ignore[misc]
+        self: "MainWindow",
+        NameChainDialog,  # type: ignore[misc]
+    ) -> None:
+        """Import-YAML path: file pick → validate → name dialog → preview → save."""
+        start_dir = str(self._settings.last_save_dir or "")
+        path_str, _ = QFileDialog.getOpenFileName(
+            self, "Import Style Chain", start_dir,  # type: ignore[call-arg]
+            "YAML style chain (*.yml *.yaml)",
+        )
+        if not path_str:
+            return
+
+        yml_path = Path(path_str)
+        try:
+            sc = load_style_chain(yml_path)
+        except ValueError as exc:
+            QMessageBox.critical(self, "Import Chain", str(exc))  # type: ignore[call-arg]
+            return
+
+        unknown = [
+            step.style for step in sc.steps
+            if self._resolve_style_id_by_name(step.style) is None
+        ]
+        if unknown:
+            names = "\n".join(f"  \u2022 {n}" for n in unknown)
+            QMessageBox.critical(  # type: ignore[call-arg]
+                self, "Import Chain",
+                "The following styles were not found in the catalog:\n"
+                + names + "\n\nChain aborted.",
+            )
+            return
+
+        # Name dialog — prefill from YAML filename
+        stem = yml_path.stem.replace("-", " ").replace("_", " ").title()
+        name_dlg = NameChainDialog(suggested_name=stem, parent=self)
+        if name_dlg.exec() != NameChainDialog.Accepted:
+            return
+
+        chain_name = name_dlg.chain_name()
+        chain_desc = name_dlg.chain_description()
+        chain_id = _make_chain_id(chain_name)
+
+        root = _get_project_root()
+        chain_dir = root / "style_chains" / "user" / chain_id
+        chain_dir.mkdir(parents=True, exist_ok=True)
+        dest_yml = chain_dir / "chain.yml"
+        shutil.copy2(str(yml_path), str(dest_yml))
+
+        preview_path = chain_dir / "preview.jpg"
+        rel_preview = f"style_chains/user/{chain_id}/preview.jpg"
+
+        # Preview popup — only for import YAML
+        want_preview = QMessageBox.question(  # type: ignore[call-arg]
+            self, "Generate Preview?",
+            "Generate a preview thumbnail?\nThis may take several seconds.",
+            QMessageBox.Yes | QMessageBox.No,  # type: ignore[attr-defined]
+            QMessageBox.Yes,  # type: ignore[attr-defined]
+        ) == QMessageBox.Yes  # type: ignore[attr-defined]
+
+        if want_preview:
+            sample = root / "sample_images" / "arch.png"
+            if sample.exists():
+                try:
+                    img = PILImage.open(str(sample)).convert("RGB")
+                    # Run the chain to generate a styled preview
+                    for step in sc.steps:
+                        style_id = self._resolve_style_id_by_name(step.style)
+                        assert style_id is not None
+                        if not self.engine.is_loaded(style_id):
+                            style_obj = self.registry.get(style_id)
+                            self.engine.load_model(
+                                style_id,
+                                style_obj.model_path_resolved(root),
+                                tensor_layout=style_obj.tensor_layout,
+                            )
+                        img = self.engine.run(img, style_id, step.strength / 100.0)
+                    _save_preview(img, preview_path)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("Preview generation failed: %s", exc)
+                    _save_placeholder_preview(preview_path)
+            else:
+                logger.warning("arch.png not found at %s — using placeholder", sample)
+                _save_placeholder_preview(preview_path)
+        else:
+            _save_placeholder_preview(preview_path)
+
+        chain_model = BuiltinChainModel(
+            id=chain_id,
+            name=chain_name,
+            description=chain_desc,
+            chain_path=f"style_chains/user/{chain_id}/chain.yml",
+            preview_path=rel_preview,
+            step_count=len(sc.steps),
+            is_builtin=False,
+        )
+        try:
+            self._chain_registry.add_user_chain(chain_model)
+        except ValueError as exc:
+            QMessageBox.warning(self, "Add Chain", str(exc))  # type: ignore[call-arg]
+            return
+
+        self.chain_gallery.refresh()
+        self._status.showMessage(f"Chain added: {chain_name}")
+
+    def _add_chain_from_log(  # type: ignore[misc]
+        self: "MainWindow",
+        NameChainDialog,  # type: ignore[misc]
+    ) -> None:
+        """Save-from-log path — implemented in Phase D."""
         pass
