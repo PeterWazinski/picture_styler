@@ -7,7 +7,8 @@
       "chain_path": "style_chains/dense/chain.yml",
       "preview_path": "style_chains/dense/preview.jpg",
       "step_count": 2,
-      "tags": ["abstract", "geometric"]
+      "tags": ["abstract", "geometric"],
+      "is_builtin": true
     },
     {
       "id": "hundertwasser",
@@ -16,7 +17,8 @@
       "chain_path": "style_chains/hundertwasser/chain.yml",
       "preview_path": "style_chains/hundertwasser/preview.jpg",
       "step_count": 1,
-      "tags": ["colorful", "organic"]
+      "tags": ["colorful", "organic"],
+      "is_builtin": true
     },
     {
       "id": "pastel",
@@ -25,7 +27,8 @@
       "chain_path": "style_chains/pastel/chain.yml",
       "preview_path": "style_chains/pastel/preview.jpg",
       "step_count": 3,
-      "tags": ["soft", "painterly"]
+      "tags": ["soft", "painterly"],
+      "is_builtin": true
     }
   ]
 }

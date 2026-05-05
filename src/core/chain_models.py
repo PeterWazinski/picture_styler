@@ -26,6 +26,7 @@ class BuiltinChainModel:
     description: str = ""
     step_count: int = 0                          # denormalised; set by add_style_chain notebook
     tags: list[str] = field(default_factory=list)  # reserved for future filtering
+    is_builtin: bool = False                     # True for system chains, False for user chains
 
     # ------------------------------------------------------------------
     # Convenience properties
@@ -97,3 +98,22 @@ class ChainStore:
         }
         with self.catalog_path.open("w", encoding="utf-8") as f:
             json.dump(payload, f, indent=2)
+
+    def add_chain(self, chain: BuiltinChainModel) -> None:
+        """Append *chain* to the catalog, creating the file if it does not exist."""
+        chains = self.load()
+        if any(c.id == chain.id for c in chains):
+            raise ValueError(f"Chain id '{chain.id}' already exists in catalog.")
+        chains.append(chain)
+        self.save(chains)
+
+    def remove_chain(self, chain_id: str) -> None:
+        """Remove the chain with *chain_id* from the catalog.
+
+        Raises :exc:`KeyError` if *chain_id* is not found.
+        """
+        chains = self.load()
+        new_chains = [c for c in chains if c.id != chain_id]
+        if len(new_chains) == len(chains):
+            raise KeyError(f"Chain id '{chain_id}' not found in catalog.")
+        self.save(new_chains)

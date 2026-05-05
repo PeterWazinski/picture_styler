@@ -94,7 +94,8 @@ class MainWindow(ApplyController, StyleChainController, ChainGalleryController, 
         self.photo_manager = photo_manager
         self._settings: AppSettings = settings or AppSettings.load()
         self._chain_registry: BuiltinChainRegistry = chain_registry or BuiltinChainRegistry(
-            catalog_path=_get_project_root() / "style_chains" / "catalog.json"
+            catalog_path=_get_project_root() / "style_chains" / "catalog.json",
+            user_catalog_path=_get_project_root() / "style_chains" / "user_catalog.json",
         )
         self._invalid_chain_ids: set[str] = invalid_chain_ids or set()
         self._current_photo: Optional[PILImage] = None

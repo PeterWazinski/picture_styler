@@ -28,17 +28,28 @@ class ChainNotFoundError(KeyError):
 
 
 class BuiltinChainRegistry:
-    """In-memory built-in chain catalog backed by a JSON file.
+    """In-memory built-in chain catalog backed by JSON files.
 
-    The catalog is loaded lazily on first access.
+    System chains are loaded from *catalog_path* (never written at runtime).
+    User chains are loaded from *user_catalog_path* if provided, and can be
+    mutated via :meth:`add_user_chain` and :meth:`remove_chain`.
 
     Args:
-        catalog_path: Path to the JSON catalog file (need not exist yet).
+        catalog_path:      Path to the system JSON catalog (read-only at runtime).
+        user_catalog_path: Optional path to the user JSON catalog (read/write).
     """
 
-    def __init__(self, catalog_path: Path) -> None:
+    def __init__(
+        self,
+        catalog_path: Path,
+        user_catalog_path: Path | None = None,
+    ) -> None:
         self._store: ChainStore = ChainStore(catalog_path)
-        self._chains: list[BuiltinChainModel] | None = None  # lazy-loaded
+        self._user_store: ChainStore | None = (
+            ChainStore(user_catalog_path) if user_catalog_path is not None else None
+        )
+        self._chains: list[BuiltinChainModel] | None = None       # lazy-loaded system
+        self._user_chains: list[BuiltinChainModel] | None = None  # lazy-loaded user
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -46,7 +57,20 @@ class BuiltinChainRegistry:
 
     def _ensure_loaded(self) -> None:
         if self._chains is None:
-            self._chains = self._store.load()
+            raw = self._store.load()
+            # Mark every system chain as builtin regardless of what the JSON says
+            self._chains = [
+                c if c.is_builtin else BuiltinChainModel(
+                    id=c.id, name=c.name, chain_path=c.chain_path,
+                    preview_path=c.preview_path, description=c.description,
+                    step_count=c.step_count, tags=c.tags, is_builtin=True,
+                )
+                for c in raw
+            ]
+
+    def _ensure_user_loaded(self) -> None:
+        if self._user_store is not None and self._user_chains is None:
+            self._user_chains = self._user_store.load()
 
     @property
     def _catalog(self) -> list[BuiltinChainModel]:
@@ -54,13 +78,18 @@ class BuiltinChainRegistry:
         assert self._chains is not None
         return self._chains
 
+    @property
+    def _user_catalog(self) -> list[BuiltinChainModel]:
+        self._ensure_user_loaded()
+        return self._user_chains or []
+
     # ------------------------------------------------------------------
     # Read operations
     # ------------------------------------------------------------------
 
     def list_chains(self) -> list[BuiltinChainModel]:
-        """Return all chains sorted alphabetically by name."""
-        return sorted(self._catalog, key=lambda c: c.name.casefold())
+        """Return all chains (system + user) sorted alphabetically by name."""
+        return sorted(self._catalog + self._user_catalog, key=lambda c: c.name.casefold())
 
     def get(self, chain_id: str) -> BuiltinChainModel:
         """Return the chain with *chain_id*, or raise :exc:`ChainNotFoundError`."""
@@ -126,3 +155,52 @@ class BuiltinChainRegistry:
                 )
                 invalid[chain.id] = missing
         return invalid
+
+    # ------------------------------------------------------------------
+    # Mutation (user chains only)
+    # ------------------------------------------------------------------
+
+    def add_user_chain(self, chain: BuiltinChainModel) -> None:
+        """Add a user chain to the user catalog.
+
+        Raises :exc:`RuntimeError` if no user catalog path was provided.
+        Raises :exc:`ValueError` if a chain with the same id already exists.
+        """
+        if self._user_store is None:
+            raise RuntimeError(
+                "BuiltinChainRegistry was created without a user_catalog_path."
+            )
+        self._ensure_user_loaded()
+        assert self._user_chains is not None
+        if any(c.id == chain.id for c in self._user_chains + self._catalog):
+            raise ValueError(f"Chain id '{chain.id}' already exists.")
+        user_chain = BuiltinChainModel(
+            id=chain.id, name=chain.name, chain_path=chain.chain_path,
+            preview_path=chain.preview_path, description=chain.description,
+            step_count=chain.step_count, tags=chain.tags, is_builtin=False,
+        )
+        self._user_store.add_chain(user_chain)
+        self._user_chains.append(user_chain)
+        logger.debug("User chain added: %s", chain.id)
+
+    def remove_chain(self, chain_id: str) -> None:
+        """Remove a user chain by id.
+
+        Raises :exc:`ValueError` if *chain_id* belongs to a system chain.
+        Raises :exc:`KeyError` if *chain_id* is not found.
+        """
+        if any(c.id == chain_id for c in self._catalog):
+            raise ValueError(
+                f"Cannot remove system chain '{chain_id}'."
+            )
+        if self._user_store is None:
+            raise RuntimeError(
+                "BuiltinChainRegistry was created without a user_catalog_path."
+            )
+        self._ensure_user_loaded()
+        assert self._user_chains is not None
+        if not any(c.id == chain_id for c in self._user_chains):
+            raise KeyError(f"User chain '{chain_id}' not found.")
+        self._user_store.remove_chain(chain_id)
+        self._user_chains = [c for c in self._user_chains if c.id != chain_id]
+        logger.debug("User chain removed: %s", chain_id)

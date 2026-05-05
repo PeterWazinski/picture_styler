@@ -97,3 +97,58 @@ def test_chainstore_load_empty_catalog(tmp_path: Path) -> None:
     store = ChainStore(tmp_path / "catalog.json")
     store.save([])
     assert store.load() == []
+
+
+# ---------------------------------------------------------------------------
+# ChainStore.add_chain / remove_chain
+# ---------------------------------------------------------------------------
+
+def test_chainstore_add_chain(tmp_path: Path) -> None:
+    store = ChainStore(tmp_path / "catalog.json")
+    store.add_chain(_make_chain("pastel"))
+    loaded = store.load()
+    assert len(loaded) == 1
+    assert loaded[0].id == "pastel"
+
+
+def test_chainstore_add_chain_duplicate_raises(tmp_path: Path) -> None:
+    store = ChainStore(tmp_path / "catalog.json")
+    store.add_chain(_make_chain("pastel"))
+    with pytest.raises(ValueError, match="already exists"):
+        store.add_chain(_make_chain("pastel"))
+
+
+def test_chainstore_remove_chain(tmp_path: Path) -> None:
+    store = ChainStore(tmp_path / "catalog.json")
+    store.save([_make_chain("pastel"), _make_chain("dense", "Dense")])
+    store.remove_chain("pastel")
+    loaded = store.load()
+    assert len(loaded) == 1
+    assert loaded[0].id == "dense"
+
+
+def test_chainstore_remove_chain_missing_raises(tmp_path: Path) -> None:
+    store = ChainStore(tmp_path / "catalog.json")
+    store.save([])
+    with pytest.raises(KeyError):
+        store.remove_chain("nonexistent")
+
+
+# ---------------------------------------------------------------------------
+# is_builtin field
+# ---------------------------------------------------------------------------
+
+def test_chainmodel_is_builtin_defaults_false() -> None:
+    c = BuiltinChainModel(id="x", name="X", chain_path="style_chains/x/chain.yml")
+    assert c.is_builtin is False
+
+
+def test_chainmodel_is_builtin_roundtrip() -> None:
+    c = BuiltinChainModel(
+        id="pastel", name="Pastel",
+        chain_path="style_chains/pastel/chain.yml",
+        is_builtin=True,
+    )
+    d = c.to_dict()
+    c2 = BuiltinChainModel.from_dict(d)
+    assert c2.is_builtin is True

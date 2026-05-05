@@ -138,3 +138,112 @@ class TestValidateStyles:
         style_reg = _make_style_registry(tmp_path, [])
         result = chain_reg.validate_styles(style_reg, root=tmp_path)
         assert "bad" in result
+
+
+# ---------------------------------------------------------------------------
+# User catalog — add_user_chain / remove_chain
+# ---------------------------------------------------------------------------
+
+class TestUserChains:
+    def _make_registries(
+        self, tmp_path: Path
+    ) -> tuple[BuiltinChainRegistry, Path]:
+        catalog = _make_catalog(tmp_path, [_make_chain("pastel")])
+        user_catalog = tmp_path / "user_catalog.json"
+        reg = BuiltinChainRegistry(catalog_path=catalog, user_catalog_path=user_catalog)
+        return reg, user_catalog
+
+    def test_list_chains_merges_system_and_user(self, tmp_path: Path) -> None:
+        reg, _ = self._make_registries(tmp_path)
+        user_chain = BuiltinChainModel(
+            id="my-chain", name="My Chain",
+            chain_path="style_chains/user/my-chain/chain.yml",
+        )
+        reg.add_user_chain(user_chain)
+        names = [c.name for c in reg.list_chains()]
+        assert "Pastel" in names
+        assert "My Chain" in names
+
+    def test_add_user_chain_persists_to_file(self, tmp_path: Path) -> None:
+        reg, user_catalog = self._make_registries(tmp_path)
+        user_chain = BuiltinChainModel(
+            id="my-chain", name="My Chain",
+            chain_path="style_chains/user/my-chain/chain.yml",
+        )
+        reg.add_user_chain(user_chain)
+        # Reload fresh registry from same files
+        reg2 = BuiltinChainRegistry(
+            catalog_path=tmp_path / "catalog.json",
+            user_catalog_path=user_catalog,
+        )
+        assert any(c.id == "my-chain" for c in reg2.list_chains())
+
+    def test_add_user_chain_sets_is_builtin_false(self, tmp_path: Path) -> None:
+        reg, _ = self._make_registries(tmp_path)
+        user_chain = BuiltinChainModel(
+            id="my-chain", name="My Chain",
+            chain_path="style_chains/user/my-chain/chain.yml",
+            is_builtin=True,  # caller may pass True; registry must override
+        )
+        reg.add_user_chain(user_chain)
+        added = next(c for c in reg.list_chains() if c.id == "my-chain")
+        assert added.is_builtin is False
+
+    def test_add_user_chain_duplicate_raises(self, tmp_path: Path) -> None:
+        reg, _ = self._make_registries(tmp_path)
+        user_chain = BuiltinChainModel(
+            id="my-chain", name="My Chain",
+            chain_path="style_chains/user/my-chain/chain.yml",
+        )
+        reg.add_user_chain(user_chain)
+        with pytest.raises(ValueError, match="already exists"):
+            reg.add_user_chain(user_chain)
+
+    def test_add_user_chain_duplicate_of_system_raises(self, tmp_path: Path) -> None:
+        reg, _ = self._make_registries(tmp_path)
+        # "pastel" is a system chain
+        dup = BuiltinChainModel(
+            id="pastel", name="My Pastel",
+            chain_path="style_chains/user/pastel/chain.yml",
+        )
+        with pytest.raises(ValueError, match="already exists"):
+            reg.add_user_chain(dup)
+
+    def test_remove_user_chain(self, tmp_path: Path) -> None:
+        reg, user_catalog = self._make_registries(tmp_path)
+        user_chain = BuiltinChainModel(
+            id="my-chain", name="My Chain",
+            chain_path="style_chains/user/my-chain/chain.yml",
+        )
+        reg.add_user_chain(user_chain)
+        reg.remove_chain("my-chain")
+        assert not any(c.id == "my-chain" for c in reg.list_chains())
+        # Also persisted
+        reg2 = BuiltinChainRegistry(
+            catalog_path=tmp_path / "catalog.json",
+            user_catalog_path=user_catalog,
+        )
+        assert not any(c.id == "my-chain" for c in reg2.list_chains())
+
+    def test_remove_system_chain_raises(self, tmp_path: Path) -> None:
+        reg, _ = self._make_registries(tmp_path)
+        with pytest.raises(ValueError, match="Cannot remove system chain"):
+            reg.remove_chain("pastel")
+
+    def test_remove_nonexistent_raises(self, tmp_path: Path) -> None:
+        reg, _ = self._make_registries(tmp_path)
+        with pytest.raises(KeyError):
+            reg.remove_chain("ghost")
+
+    def test_system_chains_have_is_builtin_true(self, tmp_path: Path) -> None:
+        reg, _ = self._make_registries(tmp_path)
+        pastel = reg.get("pastel")
+        assert pastel.is_builtin is True
+
+    def test_no_user_catalog_raises_on_add(self, tmp_path: Path) -> None:
+        catalog = _make_catalog(tmp_path, [_make_chain("pastel")])
+        reg = BuiltinChainRegistry(catalog_path=catalog)  # no user_catalog_path
+        with pytest.raises(RuntimeError):
+            reg.add_user_chain(
+                BuiltinChainModel(id="x", name="X", chain_path="x/chain.yml")
+            )

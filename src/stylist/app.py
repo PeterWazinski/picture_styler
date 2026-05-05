@@ -55,6 +55,7 @@ def _log_path() -> Path:
 _STYLES_ROOT: Path = _project_root() / "styles"
 _CATALOG_PATH: Path = _STYLES_ROOT / "catalog.json"
 _CHAIN_CATALOG_PATH: Path = _project_root() / "style_chains" / "catalog.json"
+_USER_CHAIN_CATALOG_PATH: Path = _project_root() / "style_chains" / "user_catalog.json"
 _LOG_PATH: Path = _log_path()
 
 
@@ -135,7 +136,10 @@ def main() -> int:
     photo_manager = PhotoManager()
 
     # Validate built-in chains against the style catalog; log any broken chains.
-    chain_registry = BuiltinChainRegistry(catalog_path=_CHAIN_CATALOG_PATH)
+    chain_registry = BuiltinChainRegistry(
+        catalog_path=_CHAIN_CATALOG_PATH,
+        user_catalog_path=_USER_CHAIN_CATALOG_PATH,
+    )
     root = _project_root()
     invalid_chains = chain_registry.validate_styles(registry, root=root)
     for cid, missing in invalid_chains.items():
