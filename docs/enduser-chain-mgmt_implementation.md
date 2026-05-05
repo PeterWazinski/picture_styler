@@ -143,8 +143,8 @@ it.  [Save Chain] is disabled while Name is empty.
 
 | Source | Strategy |
 |--------|----------|
-| Save from style log | Use the already-rendered `_styled_photo` — resize to 256 × 256 px, save as `preview.jpg`. Near-zero cost. |
-| Import YAML | Show popup: **"Generate preview? This may take several seconds."** [**Yes** (default/hero)] [No]. On Yes: run the chain on `sample_images/arch.png` at 256 px (same as the developer notebook). On No: save a grey placeholder. |
+| Save from style log | Use the already-rendered `_styled_photo` — center-crop to square (crop the longer axis), then resize to 256 × 256 px, save as `preview.jpg`. Near-zero cost. |
+| Import YAML | Show popup: **"Generate preview? This may take several seconds."** [**Yes** (default/hero)] [No]. On Yes: run the chain on `sample_images/arch.png` at 256 px (same as the developer notebook), then center-crop to square and resize to 256 × 256 px, save as `preview.jpg`. On No: save a grey placeholder. |
 
 The preview popup is shown **after** schema validation and style pre-flight
 checks pass — no point asking if the chain is broken.
@@ -293,7 +293,7 @@ def _delete_user_chain(self: "MainWindow", chain: BuiltinChainModel) -> None:
       `mkdir style_chains/user/<id>/`, copy `.yml` as `chain.yml`.
    f. **Preview popup**: `QMessageBox.question` — "Generate preview? This may take several seconds."
       [**Yes** (default)] [No].  
-      - Yes: run the chain on `sample_images/arch.png` at 256 px (same logic as the developer notebook); save result as `preview.jpg`.  
+      - Yes: run the chain on `sample_images/arch.png` at 256 px (same logic as the developer notebook); center-crop to square, resize to 256 × 256 px, save as `preview.jpg`.  
       - No: save a grey 256 × 256 placeholder as `preview.jpg`.
    g. `self._chain_registry.add_user_chain(chain_model)`.
    h. `self.chain_gallery.refresh()`.
@@ -301,7 +301,7 @@ def _delete_user_chain(self: "MainWindow", chain: BuiltinChainModel) -> None:
    a. Open `NameChainDialog` prefilled: name = unique styles joined by `" + "` (max 3), description = same.
    b. On confirmed: derive `chain_id`, `mkdir style_chains/user/<id>/`,
       write `self._format_style_chain()` as `chain.yml`.
-   c. Resize `self._styled_photo` to 256 × 256 px, save as `preview.jpg` (no popup — cost is near-zero).
+   c. Center-crop `self._styled_photo` to square (crop the longer axis), resize to 256 × 256 px, save as `preview.jpg` (no popup — cost is near-zero).
    d. `self._chain_registry.add_user_chain(chain_model)`.
    e. `self.chain_gallery.refresh()`.
 
