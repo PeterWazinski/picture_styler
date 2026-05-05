@@ -149,6 +149,12 @@ it.  [Save Chain] is disabled while Name is empty.
 The preview popup is shown **after** schema validation and style pre-flight
 checks pass — no point asking if the chain is broken.
 
+> **Distribution requirement**: `sample_images/arch.png` must be present in
+> the onedir build next to the EXE. Add a `--add-data` entry to `compile.ps1`:
+> ```
+> --add-data "sample_images/arch.png;sample_images"
+> ```
+
 ---
 
 ### 3.7 File → Style Chain to Clipboard
@@ -328,7 +334,7 @@ self.chain_gallery.chain_delete_requested.connect(self._delete_user_chain)
 |-------|---------|---------|
 | **A** | Data model: `is_builtin` field, `ChainStore.add/remove`, `BuiltinChainRegistry` user catalog support, `app.py` wiring, seed `catalog.json` with `is_builtin: true` | 1 |
 | **B** | Delete: `BUILTIN_ROLE` + lock overlay, context menu, `_delete_user_chain` slot, tests | 1 |
-| **C** | Add (import YAML): sentinel "+" item, `AddChainDialog`, `NameChainDialog`, import + preview-popup flow, tests | 1 |
+| **C** | Add (import YAML): sentinel "+" item, `AddChainDialog`, `NameChainDialog`, import + preview-popup flow, `compile.ps1` `--add-data` for `arch.png`, tests | 1 |
 | **D** | Add (from style log): "save log" path in `_on_add_chain_requested`, preview from `_styled_photo`, tests | 1 |
 
 Each phase is independently testable and commits in a clean state.
@@ -348,6 +354,7 @@ Each phase is independently testable and commits in a clean state.
 | `src/stylist/widgets/name_chain_dialog.py` | **New**: `NameChainDialog` |
 | `src/stylist/main_window.py` | Wire new signals (no menu change) |
 | `src/stylist/app.py` | Pass `user_catalog_path` to `BuiltinChainRegistry` |
+| `compile.ps1` | Add `--add-data "sample_images/arch.png;sample_images"` so the file ships with the onedir build |
 | `style_chains/catalog.json` | Add `"is_builtin": true` to all three existing chain entries |
 | `tests/core/test_chain_models.py` | Tests for `ChainStore.add()` / `remove()` |
 | `tests/core/test_chain_registry.py` | Tests for merged catalog, `add_user_chain()`, `remove_chain()` |
