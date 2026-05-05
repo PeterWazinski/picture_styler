@@ -21,6 +21,10 @@ FONT_SIZE: int = 9
 
 # UserRole used to flag an item as invalid (broken chain / missing style)
 INVALID_ROLE: int = Qt.UserRole + 1  # type: ignore[attr-defined]
+# UserRole used to flag a system (built-in) chain item — renders a lock overlay
+BUILTIN_ROLE: int = Qt.UserRole + 2  # type: ignore[attr-defined]
+# UserRole used to flag the sentinel "+" add item
+ADD_ITEM_ROLE: int = Qt.UserRole + 3  # type: ignore[attr-defined]
 
 
 class ThumbnailDelegate(QStyledItemDelegate):
@@ -34,6 +38,23 @@ class ThumbnailDelegate(QStyledItemDelegate):
     ) -> None:
         painter.save()
         rect = option.rect
+
+        # ----------------------------------------------------------------
+        # "+" add-item sentinel — completely custom rendering
+        # ----------------------------------------------------------------
+        if index.data(ADD_ITEM_ROLE):
+            if option.state & QStyle.State_Selected:  # type: ignore[attr-defined]
+                painter.fillRect(rect, option.palette.highlight())
+            else:
+                painter.fillRect(rect, QColor("#4a4a4a"))
+            plus_font = QFont()
+            plus_font.setPointSize(32)
+            plus_font.setBold(True)
+            painter.setFont(plus_font)
+            painter.setPen(QColor("#aaaaaa"))
+            painter.drawText(rect, Qt.AlignCenter, "+")  # type: ignore[attr-defined]
+            painter.restore()
+            return
 
         # Background
         if option.state & QStyle.State_Selected:  # type: ignore[attr-defined]
@@ -90,6 +111,20 @@ class ThumbnailDelegate(QStyledItemDelegate):
                 Qt.AlignCenter,  # type: ignore[attr-defined]
                 "\u26a0",
             )
+
+        # Lock overlay (bottom-right) — indicates system/built-in chain
+        if index.data(BUILTIN_ROLE):
+            lock_size = 16
+            lock_x = rect.x() + ITEM_WIDTH - lock_size - 4
+            lock_y = rect.y() + THUMB_SIZE + PADDING - lock_size - 2
+            lock_rect = QRect(lock_x, lock_y, lock_size, lock_size)
+            lock_font = QFont()
+            lock_font.setPointSize(10)
+            painter.setFont(lock_font)
+            painter.setOpacity(0.6)
+            painter.setPen(QColor("#dddddd"))
+            painter.drawText(lock_rect, Qt.AlignCenter, "\U0001f512")  # type: ignore[attr-defined]
+            painter.setOpacity(1.0)
 
         painter.restore()
 

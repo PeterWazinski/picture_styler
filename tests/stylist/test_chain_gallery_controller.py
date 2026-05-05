@@ -8,6 +8,7 @@ import numpy as np
 import pytest
 import yaml
 from PIL import Image
+from PySide6.QtWidgets import QMessageBox
 
 from src.core.chain_models import BuiltinChainModel, ChainStore
 from src.core.chain_registry import BuiltinChainRegistry
@@ -284,3 +285,91 @@ class TestAppendBuiltinChain:
             window._append_builtin_chain(chain)
 
         assert len(apply_calls) == 1
+
+
+# ---------------------------------------------------------------------------
+# Phase B — _delete_user_chain
+# ---------------------------------------------------------------------------
+
+def _make_window_with_user_chain(
+    qtbot,
+    tmp_path: Path,
+) -> tuple[MainWindow, BuiltinChainModel]:
+    """Window with one user chain and a user_catalog.json."""
+    registry = StyleRegistry(catalog_path=tmp_path / "catalog.json")
+
+    user_chain = BuiltinChainModel(
+        id="my-chain",
+        name="My Chain",
+        chain_path="style_chains/user/my-chain/chain.yml",
+        is_builtin=False,
+    )
+    chain_dir = tmp_path / "style_chains" / "user" / "my-chain"
+    chain_dir.mkdir(parents=True)
+    yml_path = chain_dir / "chain.yml"
+    _write_chain_yml(yml_path, [{"style": "Ukiyo-e", "strength": 100}])
+
+    sys_catalog = tmp_path / "chain_catalog.json"
+    user_catalog = tmp_path / "user_catalog.json"
+    ChainStore(sys_catalog).save([])
+    ChainStore(user_catalog).save([user_chain])
+
+    chain_registry = BuiltinChainRegistry(
+        catalog_path=sys_catalog,
+        user_catalog_path=user_catalog,
+    )
+
+    window = MainWindow(
+        registry=registry,
+        engine=StyleTransferEngine(),
+        photo_manager=PhotoManager(),
+        settings=AppSettings(),
+        chain_registry=chain_registry,
+    )
+    qtbot.addWidget(window)
+    return window, user_chain
+
+
+class TestDeleteUserChain:
+    def test_delete_confirmed_removes_directory(self, qtbot, tmp_path: Path) -> None:
+        window, chain = _make_window_with_user_chain(qtbot, tmp_path)
+        chain_dir = tmp_path / "style_chains" / "user" / "my-chain"
+        assert chain_dir.exists()
+
+        with (
+            patch("src.stylist.chain_gallery_controller.QMessageBox.question",
+                  return_value=QMessageBox.Yes),
+            patch("src.stylist.chain_gallery_controller._get_project_root",
+                  return_value=tmp_path),
+        ):
+            window._delete_user_chain(chain)
+
+        assert not chain_dir.exists()
+
+    def test_delete_confirmed_removes_from_registry(self, qtbot, tmp_path: Path) -> None:
+        window, chain = _make_window_with_user_chain(qtbot, tmp_path)
+
+        with (
+            patch("src.stylist.chain_gallery_controller.QMessageBox.question",
+                  return_value=QMessageBox.Yes),
+            patch("src.stylist.chain_gallery_controller._get_project_root",
+                  return_value=tmp_path),
+        ):
+            window._delete_user_chain(chain)
+
+        assert not any(c.id == "my-chain" for c in window._chain_registry.list_chains())
+
+    def test_delete_cancelled_does_nothing(self, qtbot, tmp_path: Path) -> None:
+        window, chain = _make_window_with_user_chain(qtbot, tmp_path)
+        chain_dir = tmp_path / "style_chains" / "user" / "my-chain"
+
+        with (
+            patch("src.stylist.chain_gallery_controller.QMessageBox.question",
+                  return_value=QMessageBox.No),
+            patch("src.stylist.chain_gallery_controller._get_project_root",
+                  return_value=tmp_path),
+        ):
+            window._delete_user_chain(chain)
+
+        assert chain_dir.exists()
+        assert any(c.id == "my-chain" for c in window._chain_registry.list_chains())

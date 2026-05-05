@@ -1,11 +1,13 @@
 """ChainGalleryController mixin — built-in chain operations for MainWindow.
 
-Provides ``_apply_builtin_chain`` and ``_append_builtin_chain``.
+Provides ``_apply_builtin_chain``, ``_append_builtin_chain``,
+``_delete_user_chain``, and ``_on_add_chain_requested``.
 Mixed into :class:`src.stylist.main_window.MainWindow`.
 """
 from __future__ import annotations
 
 import logging
+import shutil
 from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QMessageBox
@@ -115,3 +117,46 @@ class ChainGalleryController:
                 self._reapply_style(style_id, step.strength / 100.0)
 
         self._status.showMessage(f"Chain applied: {chain.name}")
+
+    # ------------------------------------------------------------------
+    # Delete
+    # ------------------------------------------------------------------
+
+    def _delete_user_chain(  # type: ignore[misc]
+        self: "MainWindow",
+        chain: BuiltinChainModel,
+    ) -> None:
+        """Confirm then permanently delete *chain* and refresh the gallery."""
+        reply = QMessageBox.question(  # type: ignore[call-arg]
+            self,
+            "Delete Chain",
+            f"Delete \u2018{chain.name}\u2019?\nThis cannot be undone.",
+            QMessageBox.Yes | QMessageBox.No,  # type: ignore[attr-defined]
+            QMessageBox.No,  # type: ignore[attr-defined]
+        )
+        if reply != QMessageBox.Yes:  # type: ignore[attr-defined]
+            return
+
+        root = _get_project_root()
+        chain_dir = (root / chain.chain_path).parent
+        if chain_dir.exists():
+            shutil.rmtree(chain_dir)
+
+        try:
+            self._chain_registry.remove_chain(chain.id)
+        except (KeyError, ValueError) as exc:
+            logger.warning("Could not remove chain '%s' from registry: %s", chain.id, exc)
+
+        self.chain_gallery.refresh()
+        self._status.showMessage(f"Chain deleted: {chain.name}")
+
+    # ------------------------------------------------------------------
+    # Add (implemented in Phase C/D)
+    # ------------------------------------------------------------------
+
+    def _on_add_chain_requested(  # type: ignore[misc]
+        self: "MainWindow",
+    ) -> None:
+        """Open AddChainDialog — implemented in Phase C/D."""
+        # Placeholder until Phase C/D implementation is in place.
+        pass

@@ -57,16 +57,7 @@ class BuiltinChainRegistry:
 
     def _ensure_loaded(self) -> None:
         if self._chains is None:
-            raw = self._store.load()
-            # Mark every system chain as builtin regardless of what the JSON says
-            self._chains = [
-                c if c.is_builtin else BuiltinChainModel(
-                    id=c.id, name=c.name, chain_path=c.chain_path,
-                    preview_path=c.preview_path, description=c.description,
-                    step_count=c.step_count, tags=c.tags, is_builtin=True,
-                )
-                for c in raw
-            ]
+            self._chains = self._store.load()
 
     def _ensure_user_loaded(self) -> None:
         if self._user_store is not None and self._user_chains is None:

@@ -24,7 +24,12 @@ from PySide6.QtWidgets import (
 
 from src.core.chain_models import BuiltinChainModel
 from src.core.chain_registry import BuiltinChainRegistry
-from src.stylist.widgets.thumbnail_delegate import INVALID_ROLE, ThumbnailDelegate
+from src.stylist.widgets.thumbnail_delegate import (
+    ADD_ITEM_ROLE,
+    BUILTIN_ROLE,
+    INVALID_ROLE,
+    ThumbnailDelegate,
+)
 
 logger: logging.Logger = logging.getLogger(__name__)
 
@@ -76,9 +81,11 @@ class ChainGalleryView(QWidget):
         chain_append_requested(BuiltinChainModel): Emitted on context *Append*.
     """
 
-    chain_selected: Signal = Signal(object)          # payload: BuiltinChainModel
-    chain_apply_requested: Signal = Signal(object)   # payload: BuiltinChainModel
-    chain_append_requested: Signal = Signal(object)  # payload: BuiltinChainModel
+    chain_selected: Signal = Signal(object)           # payload: BuiltinChainModel
+    chain_apply_requested: Signal = Signal(object)    # payload: BuiltinChainModel
+    chain_append_requested: Signal = Signal(object)   # payload: BuiltinChainModel
+    add_chain_requested: Signal = Signal()
+    chain_delete_requested: Signal = Signal(object)   # payload: BuiltinChainModel
 
     def __init__(
         self,
@@ -131,13 +138,21 @@ class ChainGalleryView(QWidget):
             item.setData(chain, Qt.UserRole)  # type: ignore[attr-defined]
             item.setTextAlignment(Qt.AlignHCenter)  # type: ignore[attr-defined]
             item.setEditable(False)
-            # Tooltip: lazy-load step list from YAML
             item.setToolTip(_format_tooltip(chain, _PROJECT_ROOT))
-            # Invalid badge
             if chain.id in self._invalid_ids:
                 item.setData(True, INVALID_ROLE)
+            if chain.is_builtin:
+                item.setData(True, BUILTIN_ROLE)
             self._item_model.appendRow(item)
-        logger.debug("Chain gallery refreshed: %d chains", self._item_model.rowCount())
+
+        # Sentinel "+" item — always last
+        add_item = QStandardItem("")
+        add_item.setData(True, ADD_ITEM_ROLE)
+        add_item.setEditable(False)
+        add_item.setToolTip("Add a new style chain")
+        self._item_model.appendRow(add_item)
+
+        logger.debug("Chain gallery refreshed: %d chains", self._item_model.rowCount() - 1)
 
     def set_invalid_ids(self, invalid_ids: set[str]) -> None:
         """Update the set of invalid chain IDs and refresh the display."""
@@ -160,11 +175,17 @@ class ChainGalleryView(QWidget):
     # ------------------------------------------------------------------
 
     def _on_item_clicked(self, index: QModelIndex) -> None:
+        if index.data(ADD_ITEM_ROLE):
+            self.add_chain_requested.emit()
+            return
         chain: BuiltinChainModel | None = index.data(Qt.UserRole)  # type: ignore[attr-defined]
         if chain:
             self.chain_selected.emit(chain)
 
     def _on_item_double_clicked(self, index: QModelIndex) -> None:
+        if index.data(ADD_ITEM_ROLE):
+            self.add_chain_requested.emit()
+            return
         chain: BuiltinChainModel | None = index.data(Qt.UserRole)  # type: ignore[attr-defined]
         if chain:
             self.chain_apply_requested.emit(chain)
@@ -173,14 +194,23 @@ class ChainGalleryView(QWidget):
         index = self._list_view.indexAt(pos)
         if not index.isValid():
             return
+        # Sentinel "+" item — no context menu
+        if index.data(ADD_ITEM_ROLE):
+            return
         chain: BuiltinChainModel | None = index.data(Qt.UserRole)  # type: ignore[attr-defined]
         if not chain:
             return
         menu = QMenu(self)
         apply_action = menu.addAction("Apply")
         append_action = menu.addAction("Append")
+        delete_action = None
+        if not chain.is_builtin:
+            menu.addSeparator()
+            delete_action = menu.addAction("Delete Chain\u2026")
         action = menu.exec(self._list_view.viewport().mapToGlobal(pos))
         if action is apply_action:
             self.chain_apply_requested.emit(chain)
         elif action is append_action:
             self.chain_append_requested.emit(chain)
+        elif delete_action is not None and action is delete_action:
+            self.chain_delete_requested.emit(chain)

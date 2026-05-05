@@ -217,6 +217,8 @@ class MainWindow(ApplyController, StyleChainController, ChainGalleryController, 
         # Chain gallery → controller
         self.chain_gallery.chain_apply_requested.connect(self._apply_builtin_chain)
         self.chain_gallery.chain_append_requested.connect(self._append_builtin_chain)
+        self.chain_gallery.chain_delete_requested.connect(self._delete_user_chain)
+        self.chain_gallery.add_chain_requested.connect(self._on_add_chain_requested)
         # Canvas → actions
         self.canvas.open_photo_requested.connect(self._open_photo)
         self.canvas.reset_requested.connect(self._reset_photo)

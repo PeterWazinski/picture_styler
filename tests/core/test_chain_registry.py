@@ -236,7 +236,14 @@ class TestUserChains:
             reg.remove_chain("ghost")
 
     def test_system_chains_have_is_builtin_true(self, tmp_path: Path) -> None:
-        reg, _ = self._make_registries(tmp_path)
+        sys_chain = BuiltinChainModel(
+            id="pastel", name="Pastel",
+            chain_path="style_chains/pastel/chain.yml",
+            is_builtin=True,
+        )
+        catalog = _make_catalog(tmp_path, [sys_chain])
+        user_catalog = tmp_path / "user_catalog.json"
+        reg = BuiltinChainRegistry(catalog_path=catalog, user_catalog_path=user_catalog)
         pastel = reg.get("pastel")
         assert pastel.is_builtin is True
 
