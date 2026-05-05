@@ -335,7 +335,7 @@ self.chain_gallery.chain_delete_requested.connect(self._delete_user_chain)
 | **A** | Data model: `is_builtin` field, `ChainStore.add/remove`, `BuiltinChainRegistry` user catalog support, `app.py` wiring, seed `catalog.json` with `is_builtin: true` | 1 — `5dc154b` ✅ |
 | **B** | Delete: `BUILTIN_ROLE` + lock overlay, context menu, `_delete_user_chain` slot, tests | 1 — `40200b5` ✅ |
 | **C** | Add (import YAML): sentinel "+" item, `AddChainDialog`, `NameChainDialog`, import + preview-popup flow, `compile.ps1` `--add-data` for `arch.png`, tests | 1 — `e8c7d2b` ✅ |
-| **D** | Add (from style log): "save log" path in `_on_add_chain_requested`, preview from `_styled_photo`, tests | 1 — `PENDING` ✅ |
+| **D** | Add (from style log): "save log" path in `_on_add_chain_requested`, preview from `_styled_photo`, tests | 1 — `0abb865` ✅ |
 
 Each phase is independently testable and commits in a clean state.
 
