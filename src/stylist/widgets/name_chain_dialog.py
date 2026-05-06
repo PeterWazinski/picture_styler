@@ -10,9 +10,12 @@ from PySide6.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QFormLayout,
+    QLabel,
     QLineEdit,
     QWidget,
 )
+
+_MAX_NAME_LEN = 18
 
 
 class NameChainDialog(QDialog):
@@ -34,8 +37,11 @@ class NameChainDialog(QDialog):
 
         layout = QFormLayout(self)
 
-        self._name_edit = QLineEdit(suggested_name)
+        self._name_edit = QLineEdit(suggested_name[:_MAX_NAME_LEN])
+        self._name_edit.setMaxLength(_MAX_NAME_LEN)
+        self._name_counter = QLabel(f"{len(self._name_edit.text())}/{_MAX_NAME_LEN}")
         layout.addRow("Name *:", self._name_edit)
+        layout.addRow("", self._name_counter)
 
         self._desc_edit = QLineEdit(suggested_name)
         layout.addRow("Description:", self._desc_edit)
@@ -51,6 +57,9 @@ class NameChainDialog(QDialog):
         # Disable Save while name is empty
         self._update_save_button()
         self._name_edit.textChanged.connect(self._update_save_button)
+        self._name_edit.textChanged.connect(
+            lambda t: self._name_counter.setText(f"{len(t)}/{_MAX_NAME_LEN}")
+        )
 
     # ------------------------------------------------------------------
     # Internal
