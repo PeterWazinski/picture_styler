@@ -343,7 +343,7 @@ class ChainGalleryController:
                                 style_obj.model_path_resolved(root),
                                 tensor_layout=style_obj.tensor_layout,
                             )
-                        img = self.engine.run(img, style_id, step.strength / 100.0)
+                        img = self.engine.apply(img, style_id, step.strength / 100.0)
                     _save_preview(img, preview_path)
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("Preview generation failed: %s", exc)
@@ -444,7 +444,7 @@ class ChainGalleryController:
                                 style_obj.model_path_resolved(root),
                                 tensor_layout=style_obj.tensor_layout,
                             )
-                        img = self.engine.run(img, style_id, int(step["strength"]) / 100.0)  # type: ignore[attr-defined]
+                        img = self.engine.apply(img, style_id, int(step["strength"]) / 100.0)  # type: ignore[attr-defined]
                     _save_preview(img, preview_path)
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("Preview generation from arch.png failed: %s", exc)
