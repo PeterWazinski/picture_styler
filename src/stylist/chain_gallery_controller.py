@@ -190,15 +190,32 @@ class ChainGalleryController:
 
         root = _get_project_root()
         chain_dir = (root / chain.chain_path).parent
+        dir_error: Exception | None = None
         if chain_dir.exists():
-            shutil.rmtree(chain_dir)
+            try:
+                shutil.rmtree(chain_dir)
+            except OSError as exc:
+                dir_error = exc
+                logger.warning(
+                    "Could not delete chain directory '%s': %s", chain_dir, exc
+                )
 
         try:
             self._chain_registry.remove_chain(chain.id)
-        except (KeyError, ValueError) as exc:
+        except (KeyError, ValueError, RuntimeError) as exc:
             logger.warning("Could not remove chain '%s' from registry: %s", chain.id, exc)
 
         self.chain_gallery.refresh()
+
+        if dir_error is not None:
+            QMessageBox.warning(  # type: ignore[call-arg]
+                self,
+                "Delete Chain",
+                f"Chain '{chain.name}' was removed from the catalog but its folder "
+                f"could not be deleted:\n{chain_dir}\n\nError: {dir_error}",
+            )
+            return
+
         self._status.showMessage(f"Chain deleted: {chain.name}")
 
     # ------------------------------------------------------------------

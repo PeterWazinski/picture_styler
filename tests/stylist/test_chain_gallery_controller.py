@@ -359,6 +359,85 @@ class TestDeleteUserChain:
 
         assert not any(c.id == "my-chain" for c in window._chain_registry.list_chains())
 
+    def test_delete_confirmed_updates_catalog_on_disk(
+        self, qtbot, tmp_path: Path
+    ) -> None:
+        """user_catalog.json must not contain the chain after deletion."""
+        from src.core.chain_models import ChainStore
+        window, chain = _make_window_with_user_chain(qtbot, tmp_path)
+        user_catalog = tmp_path / "user_catalog.json"
+
+        with (
+            patch("src.stylist.chain_gallery_controller.QMessageBox.question",
+                  return_value=QMessageBox.Yes),
+            patch("src.stylist.chain_gallery_controller._get_project_root",
+                  return_value=tmp_path),
+        ):
+            window._delete_user_chain(chain)
+
+        remaining = ChainStore(user_catalog).load()
+        assert not any(c.id == "my-chain" for c in remaining)
+
+    def test_delete_confirmed_removes_from_gallery_model(
+        self, qtbot, tmp_path: Path
+    ) -> None:
+        """Gallery model must not contain the deleted chain after refresh."""
+        from PySide6.QtCore import Qt as _Qt
+        window, chain = _make_window_with_user_chain(qtbot, tmp_path)
+
+        with (
+            patch("src.stylist.chain_gallery_controller.QMessageBox.question",
+                  return_value=QMessageBox.Yes),
+            patch("src.stylist.chain_gallery_controller._get_project_root",
+                  return_value=tmp_path),
+        ):
+            window._delete_user_chain(chain)
+
+        model = window.chain_gallery.model()
+        ids_in_model = [
+            model.item(row).data(_Qt.UserRole).id
+            for row in range(model.rowCount())
+            if model.item(row).data(_Qt.UserRole) is not None
+        ]
+        assert "my-chain" not in ids_in_model
+
+    def test_delete_rmtree_failure_still_updates_catalog_and_gallery(
+        self, qtbot, tmp_path: Path
+    ) -> None:
+        """Even if the directory cannot be deleted (e.g. PermissionError on
+        Windows), the catalog and gallery must still be updated."""
+        from src.core.chain_models import ChainStore
+        from PySide6.QtCore import Qt as _Qt
+        window, chain = _make_window_with_user_chain(qtbot, tmp_path)
+        user_catalog = tmp_path / "user_catalog.json"
+
+        with (
+            patch("src.stylist.chain_gallery_controller.QMessageBox.question",
+                  return_value=QMessageBox.Yes),
+            patch("src.stylist.chain_gallery_controller._get_project_root",
+                  return_value=tmp_path),
+            patch("src.stylist.chain_gallery_controller.shutil.rmtree",
+                  side_effect=OSError("Permission denied")),
+            patch("src.stylist.chain_gallery_controller.QMessageBox.warning"),
+        ):
+            window._delete_user_chain(chain)
+
+        # Catalog on disk must be updated
+        remaining = ChainStore(user_catalog).load()
+        assert not any(c.id == "my-chain" for c in remaining)
+
+        # In-memory registry must be updated
+        assert not any(c.id == "my-chain" for c in window._chain_registry.list_chains())
+
+        # Gallery model must not show the chain
+        model = window.chain_gallery.model()
+        ids_in_model = [
+            model.item(row).data(_Qt.UserRole).id
+            for row in range(model.rowCount())
+            if model.item(row).data(_Qt.UserRole) is not None
+        ]
+        assert "my-chain" not in ids_in_model
+
     def test_delete_cancelled_does_nothing(self, qtbot, tmp_path: Path) -> None:
         window, chain = _make_window_with_user_chain(qtbot, tmp_path)
         chain_dir = tmp_path / "style_chains" / "user" / "my-chain"
