@@ -66,7 +66,12 @@ foreach ($dir in @("$Root\build", "$Root\dist")) {
 # ── 3. Run PyInstaller ───────────────────────────────────────────────────
 Write-Host "`n=== Building PetersPictureStyler\ (this takes a few minutes) ===" -ForegroundColor Cyan
 & $VenvPy -m PyInstaller $SpecFile --noconfirm
-if ($LASTEXITCODE -ne 0) { throw "PyInstaller failed (exit $LASTEXITCODE)" }
+# PyInstaller 6.x exits with code 1 after removing intermediate stub EXEs
+# (a known benign behaviour).  Treat it as success only when the real output
+# EXE already exists; abort on any other non-zero code.
+if ($LASTEXITCODE -ne 0 -and -not (Test-Path $OutputExe)) {
+    throw "PyInstaller failed (exit $LASTEXITCODE)"
+}
 
 # ── 4. Remove stray EXE stubs that PyInstaller drops directly in dist\ ───
 #    PyInstaller creates intermediate single-file stubs in dist\ as part of
