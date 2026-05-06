@@ -438,6 +438,34 @@ class TestDeleteUserChain:
         ]
         assert "my-chain" not in ids_in_model
 
+    def test_delete_readonly_files_cleared_and_removed(
+        self, qtbot, tmp_path: Path
+    ) -> None:
+        """WinError 5 / read-only files (e.g. OneDrive sync) must be cleared
+        by _rmtree_force_remove so that the directory is fully deleted."""
+        import stat as _stat
+        window, chain = _make_window_with_user_chain(qtbot, tmp_path)
+        chain_dir = tmp_path / "style_chains" / "user" / "my-chain"
+
+        # Mark every file in the chain dir read-only to simulate OneDrive lock
+        for f in chain_dir.rglob("*"):
+            if f.is_file():
+                f.chmod(_stat.S_IREAD)
+
+        with (
+            patch("src.stylist.chain_gallery_controller.QMessageBox.question",
+                  return_value=QMessageBox.Yes),
+            patch("src.stylist.chain_gallery_controller._get_project_root",
+                  return_value=tmp_path),
+            patch("src.stylist.chain_gallery_controller.QMessageBox.warning"),
+        ):
+            window._delete_user_chain(chain)
+
+        # Chain dir must be gone (rmtree recovered via force-remove)
+        assert not chain_dir.exists()
+        # Chain must be removed from registry
+        assert not any(c.id == "my-chain" for c in window._chain_registry.list_chains())
+
     def test_delete_cancelled_does_nothing(self, qtbot, tmp_path: Path) -> None:
         window, chain = _make_window_with_user_chain(qtbot, tmp_path)
         chain_dir = tmp_path / "style_chains" / "user" / "my-chain"

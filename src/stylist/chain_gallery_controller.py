@@ -8,8 +8,10 @@ from __future__ import annotations
 
 import io
 import logging
+import os
 import re
 import shutil
+import stat
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -57,6 +59,20 @@ def _save_placeholder_preview(dest: Path, size: int = 256) -> None:
     placeholder = PILImage.new("RGB", (size, size), color=(100, 100, 100))
     dest.parent.mkdir(parents=True, exist_ok=True)
     placeholder.save(str(dest), "JPEG", quality=85)
+
+
+def _rmtree_force_remove(func, path, exc_info) -> None:  # noqa: ANN001
+    """onerror callback for shutil.rmtree.
+
+    On Windows, OneDrive (and anti-virus scanners) can mark files read-only
+    while syncing, causing rmtree to raise WinError 5 (Access is denied).
+    Clear the read-only attribute and retry.  If that still fails, re-raise.
+    """
+    try:
+        os.chmod(path, stat.S_IWRITE | stat.S_IREAD)
+        func(path)
+    except OSError:
+        raise exc_info[1]  # type: ignore[misc]
 
 
 def _suggest_name_from_log(style_log: list[dict]) -> str:
@@ -193,7 +209,7 @@ class ChainGalleryController:
         dir_error: Exception | None = None
         if chain_dir.exists():
             try:
-                shutil.rmtree(chain_dir)
+                shutil.rmtree(chain_dir, onerror=_rmtree_force_remove)
             except OSError as exc:
                 dir_error = exc
                 logger.warning(
