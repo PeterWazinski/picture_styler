@@ -334,7 +334,8 @@ class ChainGalleryController:
                     # Run the chain to generate a styled preview
                     for step in sc.steps:
                         style_id = self._resolve_style_id_by_name(step.style)
-                        assert style_id is not None
+                        if style_id is None:
+                            raise ValueError(f"Style not found in catalog: '{step.style}'")
                         if not self.engine.is_loaded(style_id):
                             style_obj = self.registry.get(style_id)
                             self.engine.load_model(
@@ -347,6 +348,11 @@ class ChainGalleryController:
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("Preview generation failed: %s", exc)
                     _save_placeholder_preview(preview_path)
+                    QMessageBox.warning(  # type: ignore[call-arg]
+                        self, "Preview Generation Failed",
+                        f"Could not generate preview from arch.png:\n{exc}\n\n"
+                        "A grey placeholder has been saved instead.",
+                    )
             else:
                 logger.warning("arch.png not found at %s — using placeholder", sample)
                 _save_placeholder_preview(preview_path)
@@ -427,8 +433,10 @@ class ChainGalleryController:
                 try:
                     img = PILImage.open(str(sample)).convert("RGB")
                     for step in self._style_log:  # type: ignore[attr-defined]
-                        style_id = self._resolve_style_id_by_name(str(step["style"]))  # type: ignore[attr-defined]
-                        assert style_id is not None
+                        style_name = str(step["style"])
+                        style_id = self._resolve_style_id_by_name(style_name)  # type: ignore[attr-defined]
+                        if style_id is None:
+                            raise ValueError(f"Style not found in catalog: '{style_name}'")
                         if not self.engine.is_loaded(style_id):  # type: ignore[attr-defined]
                             style_obj = self.registry.get(style_id)  # type: ignore[attr-defined]
                             self.engine.load_model(  # type: ignore[attr-defined]
@@ -441,6 +449,11 @@ class ChainGalleryController:
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("Preview generation from arch.png failed: %s", exc)
                     _save_placeholder_preview(preview_path)
+                    QMessageBox.warning(  # type: ignore[call-arg]
+                        self, "Preview Generation Failed",
+                        f"Could not generate preview from arch.png:\n{exc}\n\n"
+                        "A grey placeholder has been saved instead.",
+                    )
             else:
                 logger.warning("arch.png not found at %s — using placeholder", sample)
                 _save_placeholder_preview(preview_path)
