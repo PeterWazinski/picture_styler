@@ -181,6 +181,16 @@
       "preview_path": "styles/kusama/preview.jpg",
       "is_builtin": false,
       "tensor_layout": "nchw"
+    },
+    {
+      "id": "macke",
+      "name": "Macke",
+      "description": "August Macke",
+      "author": "PeterWazinski",
+      "model_path": "styles/macke/model.onnx",
+      "preview_path": "styles/macke/preview.jpg",
+      "is_builtin": false,
+      "tensor_layout": "nchw"
     }
   ]
 }
