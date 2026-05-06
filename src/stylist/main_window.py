@@ -134,7 +134,7 @@ class MainWindow(ApplyController, StyleChainController, ChainGalleryController, 
         tabs = QTabWidget(self)
         tabs.addTab(self.gallery, "Styles")
         tabs.addTab(self.chain_gallery, "Chains")
-        dock = QDockWidget("Styles & Chains", self)
+        dock = QDockWidget("Styles && Chains", self)
         dock.setWidget(tabs)
         dock.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetMovable

@@ -680,19 +680,108 @@ class TestAddChainFromLog:
 
         return _FakeNameDialog
 
+    def _mock_thumbnail_dialog(self, choice: str):
+        """Return a patcher for the QMessageBox thumbnail-choice popup.
+
+        *choice* is one of ``"current"``, ``"arch"``, or ``"none"``.
+        The mock makes ``clickedButton()`` return the button whose text
+        starts with the expected label prefix.
+        """
+        from unittest.mock import MagicMock
+
+        def _make_exec_side_effect(choice_label):
+            def exec_side_effect(self_box):
+                # Find the button matching the label prefix and record it
+                for btn in self_box.buttons():
+                    if btn.text().startswith(choice_label):
+                        self_box._chosen = btn
+                        return
+                self_box._chosen = None
+            return exec_side_effect
+
+        label_map = {
+            "current": "Use current image",
+            "arch": "Generate from arch",
+            "none": "No thumbnail",
+        }
+        label_prefix = label_map[choice]
+
+        # Patch QMessageBox so exec() records which button matches, and
+        # clickedButton() returns it.
+        real_QMB_init = None
+
+        class _FakeMsgBox:
+            AcceptRole = 0
+            ActionRole = 1
+            RejectRole = 2
+
+            def __init__(self, parent=None):
+                self._buttons: list = []
+                self._chosen = None
+                self._default = None
+
+            def setWindowTitle(self, t): pass
+            def setText(self, t): pass
+            def setDefaultButton(self, btn): self._default = btn
+
+            def addButton(self, text, role):
+                btn = MagicMock()
+                btn.text.return_value = text
+                btn.setEnabled = MagicMock()
+                self._buttons.append(btn)
+                return btn
+
+            def buttons(self):
+                return self._buttons
+
+            def exec(self):
+                for btn in self._buttons:
+                    if btn.text().startswith(label_prefix):
+                        self._chosen = btn
+                        return
+                self._chosen = None
+
+            def clickedButton(self):
+                return self._chosen
+
+        return patch(
+            "src.stylist.chain_gallery_controller.QMessageBox",
+            _FakeMsgBox,
+        )
+
     def test_add_chain_from_log_saves_chain(
         self, qtbot, tmp_path: Path
     ) -> None:
+        """Choosing 'Use current image' saves the styled photo as thumbnail."""
         window, chain_registry = self._make_window_with_log(qtbot, tmp_path)
+        window._styled_photo = _dummy_image(64)
 
-        with patch("src.stylist.chain_gallery_controller._get_project_root",
-                   return_value=tmp_path):
+        with (
+            patch("src.stylist.chain_gallery_controller._get_project_root",
+                  return_value=tmp_path),
+            self._mock_thumbnail_dialog("current"),
+        ):
             window._add_chain_from_log(self._fake_name_dialog("Ukiyo-e Log"))
 
         assert any(c.id == "ukiyo_e_log" for c in chain_registry.list_chains())
         chain_dir = tmp_path / "style_chains" / "user" / "ukiyo_e_log"
         assert (chain_dir / "chain.yml").exists()
         assert (chain_dir / "preview.jpg").exists()
+
+    def test_add_chain_from_log_no_thumbnail_saves_placeholder(
+        self, qtbot, tmp_path: Path
+    ) -> None:
+        """Choosing 'No thumbnail' saves a grey placeholder."""
+        window, chain_registry = self._make_window_with_log(qtbot, tmp_path)
+
+        with (
+            patch("src.stylist.chain_gallery_controller._get_project_root",
+                  return_value=tmp_path),
+            self._mock_thumbnail_dialog("none"),
+        ):
+            window._add_chain_from_log(self._fake_name_dialog("No Thumb"))
+
+        assert any(c.id == "no_thumb" for c in chain_registry.list_chains())
 
     def test_add_chain_from_log_cancelled_does_nothing(
         self, qtbot, tmp_path: Path
@@ -716,15 +805,18 @@ class TestAddChainFromLog:
 
         assert chain_registry.list_chains() == []
 
-    def test_add_chain_from_log_uses_styled_photo(
+    def test_add_chain_from_log_current_image_is_square(
         self, qtbot, tmp_path: Path
     ) -> None:
-        """When _styled_photo is set, preview.jpg should not be placeholder grey."""
+        """Choosing 'Use current image' center-crops to a square preview."""
         window, chain_registry = self._make_window_with_log(qtbot, tmp_path)
         window._styled_photo = _dummy_image(64)
 
-        with patch("src.stylist.chain_gallery_controller._get_project_root",
-                   return_value=tmp_path):
+        with (
+            patch("src.stylist.chain_gallery_controller._get_project_root",
+                  return_value=tmp_path),
+            self._mock_thumbnail_dialog("current"),
+        ):
             window._add_chain_from_log(self._fake_name_dialog("MySnap"))
 
         chain_dir = tmp_path / "style_chains" / "user" / "mysnap"

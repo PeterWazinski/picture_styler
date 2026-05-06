@@ -378,10 +378,56 @@ class ChainGalleryController:
             self._format_style_chain(), encoding="utf-8"  # type: ignore[attr-defined]
         )
 
-        # Preview from _styled_photo (no popup for save-from-log)
+        # Ask user which preview source to use
         preview_path = chain_dir / "preview.jpg"
-        if self._styled_photo is not None:  # type: ignore[attr-defined]
+        has_photo = self._styled_photo is not None  # type: ignore[attr-defined]
+        msg_box = QMessageBox(self)  # type: ignore[call-arg]
+        msg_box.setWindowTitle("Choose Thumbnail")
+        msg_box.setText("Which image should be used as the chain thumbnail?")
+        btn_current = msg_box.addButton(
+            "Use current image", QMessageBox.AcceptRole  # type: ignore[attr-defined]
+        )
+        btn_arch = msg_box.addButton(
+            "Generate from arch.png\n(may take a few seconds)",
+            QMessageBox.ActionRole,  # type: ignore[attr-defined]
+        )
+        btn_none = msg_box.addButton(
+            "No thumbnail", QMessageBox.RejectRole  # type: ignore[attr-defined]
+        )
+        if not has_photo:
+            btn_current.setEnabled(False)
+            msg_box.setDefaultButton(btn_arch)
+        else:
+            msg_box.setDefaultButton(btn_current)
+        msg_box.exec()
+        clicked = msg_box.clickedButton()
+
+        if clicked is btn_current and has_photo:
             _save_preview(self._styled_photo, preview_path)  # type: ignore[attr-defined]
+        elif clicked is btn_arch:
+            root_bundled = _get_bundled_data_root()
+            sample = root_bundled / "sample_images" / "arch.png"
+            if sample.exists():
+                try:
+                    img = PILImage.open(str(sample)).convert("RGB")
+                    for step in self._style_log:  # type: ignore[attr-defined]
+                        style_id = self._resolve_style_id_by_name(str(step["style"]))  # type: ignore[attr-defined]
+                        assert style_id is not None
+                        if not self.engine.is_loaded(style_id):  # type: ignore[attr-defined]
+                            style_obj = self.registry.get(style_id)  # type: ignore[attr-defined]
+                            self.engine.load_model(  # type: ignore[attr-defined]
+                                style_id,
+                                style_obj.model_path_resolved(root),
+                                tensor_layout=style_obj.tensor_layout,
+                            )
+                        img = self.engine.run(img, style_id, int(step["strength"]) / 100.0)  # type: ignore[attr-defined]
+                    _save_preview(img, preview_path)
+                except Exception as exc:  # noqa: BLE001
+                    logger.warning("Preview generation from arch.png failed: %s", exc)
+                    _save_placeholder_preview(preview_path)
+            else:
+                logger.warning("arch.png not found at %s — using placeholder", sample)
+                _save_placeholder_preview(preview_path)
         else:
             _save_placeholder_preview(preview_path)
 
