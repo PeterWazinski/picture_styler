@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 from PIL import Image
@@ -132,6 +133,7 @@ def _apply_chain_to_image(
     overlap: int,
     use_float16: bool,
     strength_scale: int | None,
+    progress_callback: Callable[[], None] | None = None,
 ) -> Image.Image:
     """Apply all steps of *chain* to *source* and return the final result."""
     result = source.copy()
@@ -151,6 +153,8 @@ def _apply_chain_to_image(
             strength=strength, tile_size=tile_size, overlap=overlap, use_float16=use_float16,
         )
         engine.unload_model(style_model.id)
+        if progress_callback is not None:
+            progress_callback()
     return result
 
 
@@ -184,20 +188,27 @@ def cmd_apply_style_chain(
         sys.exit("Error: the following style(s) were not found in the catalog:\n" +
                  "\n".join(f"  - {n}" for n in unknown))
 
-    print(f"Tile size    : {effective_tile_size} px  overlap: {effective_overlap} px")
-    print()
-
     engine = StyleTransferEngine()
     source = Image.open(image_path).convert("RGB")
 
-    print(f"Applying {len(replay.steps)} step(s) ...", flush=True)
+    print(
+        f"Applying style chain '{replay_path.stem}' with {len(replay.steps)} styles ",
+        end="", flush=True,
+    )
+
+    def _dot() -> None:
+        print(".", end="", flush=True)
+
+    t0 = time.monotonic()
     result = _apply_chain_to_image(
         source, replay, registry, engine,
         tile_size=effective_tile_size,
         overlap=effective_overlap,
         use_float16=use_float16,
         strength_scale=strength_scale,
+        progress_callback=_dot,
     )
+    elapsed = round(time.monotonic() - t0)
 
     dir_out = out_dir if out_dir is not None else image_path.parent
     if strength_scale is not None:
@@ -206,7 +217,7 @@ def cmd_apply_style_chain(
         fname = f"{image_path.stem}_{replay_path.stem}.jpg"
     out_path = dir_out / fname
     result.save(out_path, format="JPEG", quality=JPEG_QUALITY)
-    print(f"\nOK  Result written: {out_path}")
+    print(f" in {elapsed} seconds. Written to '{out_path.stem}'")
 
 
 # ---------------------------------------------------------------------------
