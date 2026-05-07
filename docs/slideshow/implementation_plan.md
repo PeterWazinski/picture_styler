@@ -1,7 +1,8 @@
 # SlideshowGen — Implementation Plan
 
-**Version**: 1.0 — May 2026  
-**Project location**: `C:\Users\i09300076\OneDrive - Endress+Hauser\DEV\Python3\slideshow-gen\`
+**Version**: 1.1 — May 2026  
+**GitHub**: `https://github.com/PeterWazinski/slideshow-maker.git`  
+**Project location**: `C:\Users\i09300076\OneDrive - Endress+Hauser\DEV\Python3\slideshow-maker\`
 
 > **Standalone project — do not merge into `style_transfer`.**  
 > The two tools have incompatible dependency stacks (ONNX/PySide6 vs. ffmpeg/PyYAML),
@@ -108,7 +109,7 @@ The `offset` for each xfade = `sum of (slide_duration - transition_duration)` fo
 ### 2.3 Project structure
 
 ```
-slideshow-gen/
+slideshow-maker/
 ├── slidegen/
 │   ├── __init__.py
 │   ├── app.py               # CLI: argparse + orchestration
@@ -142,7 +143,7 @@ slidegen <picdir>
          [--slideshow <file.mp4>]
          [--resolution 480|720|1080]
          [--order random|alpha|date]
-         [--transition random|none|<xfade-name>]
+         [--transition random|none|<category>]
          [--mood calm|medium|energizing]
          [--ken-burns low|medium|high|none]
          [--slide-duration <secs>|audio-sync]
@@ -164,12 +165,12 @@ slidegen <picdir>
 | `--slideshow FILE` | `<picdir-name>_slideshow.mp4` | Output file path |
 | `--resolution 480\|720\|1080` | `720` | Output height in pixels; width = auto (16:9) |
 | `--order random\|alpha\|date` | `random` | Sort order of images |
-| `--transition random\|none\|NAME` | `random` | xfade transition (see §5 for full list) |
+| `--transition random\|none\|CATEGORY` | `random` | xfade transition category (see §3.5); a random filter from that category is chosen per slide |
 | `--mood calm\|medium\|energizing` | `medium` | One-knob preset for duration + Ken Burns intensity |
 | `--ken-burns low\|medium\|high\|none` | `medium` | Ken Burns intensity (overrides mood's default) |
 | `--slide-duration SECS\|audio-sync` | from mood | Seconds per slide, or stretch to fit audio |
 | `--mp3 FILE` | (none, silent) | Audio track; repeat flag for multiple files |
-| `--overwrite` | `False` | Overwrite output file without asking |
+| `--overwrite` | `False` | Overwrite existing output file; if omitted and file exists, output is written as `<name>_1.mp4`, `<name>_2.mp4`, etc. |
 | `--dry-run` | `False` | Print ffmpeg command but do not execute |
 
 ### 3.4 audio-sync formula
@@ -188,30 +189,43 @@ If the resulting `slide_duration < 0.5 s`, exit with an error:
 
 Minimum enforced: `slide_duration ≥ 0.5 s`.
 
-### 3.5 `--transition` valid names
+### 3.5 `--transition` valid values
 
-Category | Names
----|---
-Wipe | `wipeleft` `wiperight` `wipeup` `wipedown` `wipetl` `wipetr` `wipebl` `wipebr`
-Slide | `slideleft` `slideright` `slideup` `slidedown`
-Cover/Reveal | `coverleft` `coverright` `coverup` `coverdown` `revealleft` `revealright` `revealup` `revealdown`
-Fade | `fade` `fadeblack` `fadewhite` `fadegrays` `fadefast` `fadeslow`
-Smooth | `smoothleft` `smoothright` `smoothup` `smoothdown`
-Circle | `circlecrop` `circleopen` `circleclose`
-Diagonal | `diagtl` `diagtr` `diagbl` `diagbr`
-Slice | `hlslice` `hrslice` `vuslice` `vdslice` `hlwind` `hrwind` `vuwind` `vdwind`
-Squeeze | `squeezeh` `squeezev`
-Vert/Horz | `vertopen` `vertclose` `horzopen` `horzclose`
-Other | `dissolve` `pixelize` `distance` `rectcrop` `radial` `hblur` `zoomin`
+The `--transition` flag accepts a **category name** (or `random` / `none`).  
+The system picks one filter from that category uniformly at random for each slide transition.  
+Individual filter names (e.g. `wipeleft`) are **not** accepted on the CLI.
 
-`random` picks uniformly from the full list for each slide independently.
+| Value | Picks from |
+|---|---|
+| `random` | full pool (all categories) |
+| `none` | no transition |
+| `wipe` | `wipeleft` `wiperight` `wipeup` `wipedown` `wipetl` `wipetr` `wipebl` `wipebr` |
+| `slide` | `slideleft` `slideright` `slideup` `slidedown` |
+| `cover` | `coverleft` `coverright` `coverup` `coverdown` |
+| `reveal` | `revealleft` `revealright` `revealup` `revealdown` |
+| `fade` | `fade` `fadeblack` `fadewhite` `fadegrays` `fadefast` `fadeslow` |
+| `smooth` | `smoothleft` `smoothright` `smoothup` `smoothdown` |
+| `circle` | `circlecrop` `circleopen` `circleclose` |
+| `diagonal` | `diagtl` `diagtr` `diagbl` `diagbr` |
+| `slice` | `hlslice` `hrslice` `vuslice` `vdslice` `hlwind` `hrwind` `vuwind` `vdwind` |
+| `squeeze` | `squeezeh` `squeezev` |
+| `openclose` | `vertopen` `vertclose` `horzopen` `horzclose` |
+| `other` | `dissolve` `pixelize` `distance` `rectcrop` `radial` `hblur` `zoomin` |
 
 ---
 
 ## 4. Ken Burns Config File
 
-`ken_burns_config.yml` lives next to the script (or in the user's home dir as `~/.slidegen/ken_burns_config.yml`).  
-The CLI reads it on startup; values are overridden by the `--ken-burns` flag.
+Ken Burns settings are resolved from three sources in **ascending priority order**:
+
+| Priority | Source | Path |
+|---|---|---|
+| 1 (lowest) | Product default config | `<app-dir>/ken_burns_config.yml` — always present, shipped with the tool |
+| 2 | User home config | `~/.slidegen/ken_burns_config.yml` — optional; only present keys override the product defaults |
+| 3 (highest) | CLI flags | `--ken-burns low\|medium\|high\|none` and `--mood` — override both configs |
+
+Missing keys in a higher-priority source fall through to the next level.  
+The product default config defines all keys and is the authoritative baseline.
 
 ```yaml
 # Ken Burns parameters — tuned interactively
@@ -302,7 +316,7 @@ EXIF orientation is respected (Pillow normalises before passing to ffmpeg via `-
 - HEIC: auto-converted to JPEG in a temp folder via Pillow + `pillow-heif`
 - Sort modes:
   - `alpha` → `Path.name.casefold()`
-  - `date` → EXIF `DateTimeOriginal` → file `mtime` fallback
+  - `date` → file modification time (`mtime`); EXIF date is **not** used
   - `random` → `random.shuffle`
 - Exits if `< 2` images found
 
@@ -321,13 +335,16 @@ EXIF orientation is respected (Pillow normalises before passing to ffmpeg via `-
 
 ## 9. Dependencies
 
+> **Python 3.10 compatibility verified** (target environment is Python 3.10 on Windows x64).  
+> All packages below have wheels available for `cp310-win_amd64`.
+
 ```
 # requirements.txt
-Pillow>=10.0
-pillow-heif>=0.13          # HEIC support
-PyYAML>=6.0                # ken_burns_config.yml
-imageio-ffmpeg>=0.4.9      # fallback ffmpeg bundle
-pydantic>=2.0              # config validation
+Pillow>=10.0               # py310: ✓ (10.x supports 3.10)
+pillow-heif>=0.13          # py310: ✓ HEIC/HEIF support
+PyYAML>=6.0                # py310: ✓
+imageio-ffmpeg>=0.4.9      # py310: ✓ bundled ffmpeg fallback
+pydantic>=2.0              # py310: ✓ (v2 requires 3.8+)
 ```
 
 No GUI framework, no heavy ML libraries.
@@ -336,16 +353,35 @@ No GUI framework, no heavy ML libraries.
 
 ## 10. Implementation Phases
 
+> **Rule**: every phase ends by **adapting and executing tests** before moving to the next phase.
+
 | Phase | Scope | Est. lines |
 |---|---|---|
-| 1 | `ffmpeg_finder` + `image_collector` + `config` (Pydantic) + `app.py` skeleton | ~200 |
-| 2 | `ken_burns.py` + `filter_builder.py` (zoompan + xfade filter_complex) | ~150 |
-| 3 | `audio_mixer.py` + audio-sync formula | ~80 |
-| 4 | `runner.py` (execute ffmpeg, progress bar) | ~60 |
-| 5 | Tests (all modules, mocking ffmpeg) | ~300 |
+| 0 | **Setup** — clone repo, create venv (Python 3.10), configure `.gitignore`, copy plan to `docs/`, open workspace in VS Code | — |
+| 1 | `ffmpeg_finder` + `image_collector` + `config` (Pydantic) + `app.py` skeleton → tests green | ~200 |
+| 2 | `ken_burns.py` + `filter_builder.py` (zoompan + xfade filter_complex) → tests green | ~150 |
+| 3 | `audio_mixer.py` + audio-sync formula → tests green | ~80 |
+| 4 | `runner.py` (execute ffmpeg, progress bar) → tests green | ~60 |
+| 5 | Tests — full suite green (all modules, mocking ffmpeg) | ~300 |
 | 6 | `ken_burns_config.yml` tuning + README | ~50 |
+| 7 | **Build / Compile** — `pyproject.toml` entry-point, PyInstaller one-file exe (Windows), smoke-test the binary | ~30 |
 
 Total estimated: ~840 lines (production) + ~300 lines (tests).
+
+### Phase 0 — Setup (detailed steps)
+
+1. Open a **new VS Code window** for the slideshow project (do not close the current `style_transfer` workspace).
+2. Clone the repo:  
+   `git clone https://github.com/PeterWazinski/slideshow-maker.git "C:\Users\i09300076\OneDrive - Endress+Hauser\DEV\Python3\slideshow-maker"`
+3. Open the cloned folder as a VS Code workspace.
+4. Create venv with Python 3.10:  
+   `py -3.10 -m venv .venv`
+5. Activate and install dev deps:  
+   `.venv\Scripts\activate ; pip install -e ".[dev]"`
+6. Adapt `.gitignore` — add: `.venv/`, `dist/`, `build/`, `*.spec`, `__pycache__/`, `*.pyc`, `*.egg-info/`
+7. Create `docs/` folder and copy `implementation_plan.md` into it.
+8. Initial commit:  
+   `git add . ; git commit -m "chore: project scaffold and docs"`
 
 ---
 
@@ -358,14 +394,14 @@ slidegen C:\Photos\Italy2025 --mood calm --mp3 bgm.mp3 --slide-duration audio-sy
 # Fast party reel, 720p, random transitions
 slidegen C:\Photos\Party --mood energizing --resolution 720
 
-# Specific transition, alphabetical order, silent
+# Specific transition category (picks a random fade filter per slide), alphabetical order, silent
 slidegen C:\Photos\Architecture --transition fade --order alpha --slideshow arch_tour.mp4
 
 # Preview what would run (no ffmpeg execution)
 slidegen C:\Photos\Test --dry-run
 
-# Full control (overrides mood)
-slidegen C:\Photos\Wedding --mood calm --slide-duration 8 --ken-burns high --transition dissolve
+# Full control (overrides mood); "other" category includes dissolve, pixelize, zoomin etc.
+slidegen C:\Photos\Wedding --mood calm --slide-duration 8 --ken-burns high --transition other
 ```
 
 ---
