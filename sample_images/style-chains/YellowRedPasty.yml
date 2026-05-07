@@ -1,0 +1,12 @@
+# PetersPictureStyler – style chain
+# Created: 2026-05-05 19:49
+version: 1
+tile_size: 1024
+tile_overlap: 128
+steps:
+- style: Starry Night
+  strength: 52
+- style: Abstract
+  strength: 52
+- style: Van Gogh
+  strength: 100

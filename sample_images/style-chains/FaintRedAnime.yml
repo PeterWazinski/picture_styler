@@ -1,12 +1,12 @@
 # PetersPictureStyler – style chain
-# Created: 2026-04-30 16:07
+# Created: 2026-05-05 19:40
 version: 1
 tile_size: 1024
 tile_overlap: 128
 steps:
-- style: Ukiyo-e
-  strength: 150
+- style: Candy
+  strength: 66
 - style: Akira Manga
-  strength: 80
-- style: Cubism
-  strength: 80
+  strength: 66
+- style: Tintin
+  strength: 36
