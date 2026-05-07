@@ -5,12 +5,14 @@ Usage::
     python -m src.batch_styler.app --style-overview path/to/photo.jpg
     python -m src.batch_styler.app --apply-style-chain my_chain.yml path/to/photo.jpg
     python -m src.batch_styler.app --style-chain-overview chains/ path/to/photo.jpg
+    python -m src.batch_styler.app --apply-random-style-chain chains/ --input-dir pics/
 
 When compiled with PyInstaller the entry point is ``BatchStyler.exe``.
 """
 from __future__ import annotations
 
 import argparse
+import random
 import sys
 from pathlib import Path
 
@@ -36,47 +38,80 @@ from src.core.registry import StyleRegistry  # noqa: E402
 # ---------------------------------------------------------------------------
 
 _USAGE = (
-    "Usage:\n"
-    "  BatchStyler.exe --style-overview <image>  [options]\n"
-    "  BatchStyler.exe --apply-style-chain <chain.yml> <image>  [options]\n"
-    "  BatchStyler.exe --style-chain-overview <chain-dir> <image>  [options]\n"
+    "BatchStyler.exe  \u2014  batch style-transfer tool\n"
     "\n"
-    "Modes (exactly one required):\n"
-    "  --style-overview       Create a DIN-A4 landscape PDF contact sheet with all styles.\n"
-    "                         Each style gets 3 cells: 100 %, 150 %, 200 % strength.\n"
-    "                         Output: <image-dir>/<stem>_style_overview.pdf\n"
-    "  --apply-style-chain FILE  Apply a saved style-chain YAML to the image.\n"
-    "                         Output: <image-dir>/<stem>_<chain-stem>.jpg\n"
-    "  --style-chain-overview CHAIN_DIR\n"
-    "                         Apply all .yml chains in CHAIN_DIR and produce a portrait A4 PDF.\n"
-    "                         Output: <image-dir>/<stem>_<chain-dir-name>_overview.pdf\n"
+    "COMMANDS THAT CREATE CONTACT SHEETS (PDF overview)\n"
+    "  --style-overview <image>\n"
+    "        Apply all available styles to <image> at 100/150/200% strength and\n"
+    "        write a DIN-A4 landscape PDF contact sheet.\n"
+    "        Output: <image-dir>/<stem>_style_overview.pdf\n"
     "\n"
-    "Options for --style-overview:\n"
-    "  --apply-style NAME     Apply only the named style (case-insensitive).\n"
+    "  --style-chain-overview <chain-dir> <image>\n"
+    "        Apply every .yml chain in <chain-dir> to <image> and write a\n"
+    "        portrait A4 PDF with one result per chain.\n"
+    "        Output: <image-dir>/<stem>_<chain-dir-name>_overview.pdf\n"
     "\n"
-    "Options for --apply-style-chain and --style-chain-overview:\n"
-    "  --strength-scale N     Scale each step's strength by N% (1\u2013300). Capped at 300%.\n"
-    "                         E.g. --strength-scale 50 turns 100%\u219250%, 200%\u2192100%.\n"
+    "COMMANDS THAT CREATE ONE OR MORE JPEG OUTPUT IMAGES\n"
+    "  --apply-style-chain <chain.yml>\n"
+    "        Apply the style chain defined in <chain.yml> step by step.\n"
+    "        Output: <image-dir>/<stem>_<chain-stem>.jpg\n"
     "\n"
-    "Common options:\n"
-    "  --tile-size N  Tile size for ONNX inference in pixels (default: 1024)\n"
-    "  --overlap N    Tile overlap in pixels (default: 128)\n"
-    "  --float16      Enable float16 inference (faster on GPU/DML)\n"
-    "  --outdir DIR   Write output file(s) to DIR instead of the source image folder.\n"
-    "                 DIR must already exist.\n"
+    "  --apply-style <name>\n"
+    "        Apply a single named style (case-insensitive). Only valid with\n"
+    "        --style-overview.\n"
+    "\n"
+    "  --apply-random-style-chain <chain-dir>\n"
+    "        Pick a random .yml chain from <chain-dir> and apply it.\n"
+    "        Combine with --input-dir to process a whole folder of pictures,\n"
+    "        each with a different randomly chosen chain.\n"
+    "\n"
+    "OPTIONAL PARAMETERS (apply to all JPEG-producing commands)\n"
+    "  --input-dir <dir>\n"
+    "        Process all JPEG/PNG images in <dir> instead of a single <image>.\n"
+    "\n"
+    "  --output-dir <dir>\n"
+    "        Write output file(s) to <dir> instead of the source image folder.\n"
+    "        <dir> must already exist.\n"
+    "\n"
+    "  --tile-size <N>\n"
+    "        Tile size for ONNX inference in pixels. Default: 1024 (or YAML value).\n"
+    "\n"
+    "  --overlap <N>\n"
+    "        Tile overlap in pixels. Default: 128 (or YAML value).\n"
+    "\n"
+    "  --strength-scale <N>\n"
+    "        Scale all chain-step strengths by N percent (1\u2013300).\n"
+    "        Example: --strength-scale 60 turns 100%\u219260%, 150%\u219290%.\n"
+    "\n"
+    "  --float16\n"
+    "        Enable float16 inference (faster on supported GPUs / DirectML).\n"
     "\n"
     "Available styles:\n"
     + _catalog._list_styles_for_help()
     + "\n"
     "\n"
-    "Examples:\n"
+    "EXAMPLES\n"
     "  BatchStyler.exe --style-overview portrait.jpg\n"
     "  BatchStyler.exe --style-overview portrait.jpg --apply-style \"Candy\"\n"
-    "  BatchStyler.exe --apply-style-chain my_chain.yml portrait.jpg\n"
-    "  BatchStyler.exe --apply-style-chain my_chain.yml portrait.jpg --strength-scale 80\n"
-    "  BatchStyler.exe --apply-style-chain my_chain.yml portrait.jpg --outdir C:\\\\output\n"
+    "  BatchStyler.exe --apply-style-chain rainbow.yml portrait.jpg\n"
+    "  BatchStyler.exe --apply-style-chain rainbow.yml portrait.jpg --strength-scale 80\n"
+    "  BatchStyler.exe --apply-style-chain rainbow.yml portrait.jpg --output-dir C:\\\\output\n"
+    "  BatchStyler.exe --apply-random-style-chain C:\\\\chains portrait.jpg\n"
+    "  BatchStyler.exe --input-dir C:\\\\my_pics --apply-random-style-chain C:\\\\chains --output-dir C:\\\\out\n"
     "  BatchStyler.exe --style-chain-overview C:\\\\chains portrait.jpg\n"
 )
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+_IMAGE_EXTENSIONS: frozenset[str] = frozenset({".jpg", ".jpeg", ".png"})
+
+
+def _collect_images(input_dir: Path) -> list[Path]:
+    """Return sorted list of JPEG/PNG files in *input_dir* (non-recursive)."""
+    return sorted(p for p in input_dir.iterdir() if p.suffix.lower() in _IMAGE_EXTENSIONS)
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +136,19 @@ def main() -> None:
         "--style-chain-overview", type=Path, metavar="CHAIN_DIR", dest="style_chain_overview",
         help="Apply all .yml chains in CHAIN_DIR and produce a portrait A4 PDF.",
     )
-    parser.add_argument("image", type=Path, help="Source image file (JPEG or PNG)")
+    mode_group.add_argument(
+        "--apply-random-style-chain", type=Path, metavar="CHAIN_DIR",
+        dest="apply_random_style_chain",
+        help="Pick a random style-chain YAML from CHAIN_DIR and apply it to the image.",
+    )
+    parser.add_argument(
+        "image", type=Path, nargs="?", default=None,
+        help="Source image file (JPEG or PNG). Omit when using --input-dir.",
+    )
+    parser.add_argument(
+        "--input-dir", type=Path, default=None, metavar="DIR", dest="input_dir",
+        help="Process all JPEG/PNG images in DIR instead of a single <image>.",
+    )
     parser.add_argument(
         "--tile-size", type=int, default=None,
         help="Tile size for inference in pixels. Default: use YAML value or 1024.",
@@ -112,7 +159,7 @@ def main() -> None:
     )
     parser.add_argument(
         "--strength-scale", type=int, default=None, metavar="PCT", dest="strength_scale",
-        help="Scale all chain step strengths by this percentage (1\u20133300). Capped at 300%%.",
+        help="Scale all chain step strengths by this percentage (1\u2013300). Capped at 300%%.",
     )
     parser.add_argument(
         "--float16", action="store_true", default=False,
@@ -123,24 +170,52 @@ def main() -> None:
         help="Apply only this style (case-insensitive name). Only for --style-overview.",
     )
     parser.add_argument(
-        "--outdir", type=Path, default=None, metavar="DIR",
+        "--output-dir", type=Path, default=None, metavar="DIR", dest="output_dir",
         help="Write output file(s) to DIR instead of the source image folder. DIR must already exist.",
     )
     args = parser.parse_args()
 
-    if not args.style_overview and not args.apply_style_chain and not args.style_chain_overview:
+    no_mode = (
+        not args.style_overview
+        and not args.apply_style_chain
+        and not args.style_chain_overview
+        and not args.apply_random_style_chain
+    )
+    if no_mode:
         print(_USAGE)
         sys.exit(1)
 
-    image_path: Path = args.image.resolve()
-    if not image_path.exists():
-        sys.exit(f"Error: image not found: {image_path}")
+    # ── image source: exactly one of <image> or --input-dir ─────────────────
+    if args.image is not None and args.input_dir is not None:
+        sys.exit("Error: <image> and --input-dir are mutually exclusive — provide one or the other.")
+    if args.image is None and args.input_dir is None:
+        # --style-overview and --style-chain-overview historically require a positional image
+        sys.exit("Error: provide either <image> or --input-dir.")
 
+    # --input-dir is not valid for PDF-overview commands
+    if args.input_dir is not None and (args.style_overview or args.style_chain_overview):
+        sys.exit("Error: --input-dir cannot be used with --style-overview or --style-chain-overview.")
+
+    # ── resolve output dir ───────────────────────────────────────────────────
     out_dir: Path | None = None
-    if args.outdir is not None:
-        out_dir = args.outdir.resolve()
+    if args.output_dir is not None:
+        out_dir = args.output_dir.resolve()
         if not out_dir.is_dir():
-            sys.exit(f"Error: --outdir directory does not exist: {out_dir}")
+            sys.exit(f"Error: --output-dir directory does not exist: {out_dir}")
+
+    # ── build image path list ────────────────────────────────────────────────
+    if args.input_dir is not None:
+        input_dir = args.input_dir.resolve()
+        if not input_dir.is_dir():
+            sys.exit(f"Error: --input-dir directory does not exist: {input_dir}")
+        image_paths = _collect_images(input_dir)
+        if not image_paths:
+            sys.exit(f"Error: no JPEG/PNG images found in {input_dir}")
+    else:
+        single = args.image.resolve()
+        if not single.exists():
+            sys.exit(f"Error: image not found: {single}")
+        image_paths = [single]
 
     if args.strength_scale is not None and not (1 <= args.strength_scale <= 300):
         sys.exit("Error: --strength-scale must be between 1 and 300.")
@@ -148,15 +223,38 @@ def main() -> None:
     if args.apply_style and not args.style_overview:
         sys.exit("Error: --apply-style can only be used with --style-overview.")
 
+    # ── dispatch ─────────────────────────────────────────────────────────────
     if args.apply_style_chain:
-        cmd_apply_style_chain(
-            image_path, args.apply_style_chain.resolve(),
-            tile_size=args.tile_size,
-            overlap=args.overlap,
-            use_float16=args.float16,
-            strength_scale=args.strength_scale,
-            out_dir=out_dir,
-        )
+        for image_path in image_paths:
+            cmd_apply_style_chain(
+                image_path, args.apply_style_chain.resolve(),
+                tile_size=args.tile_size,
+                overlap=args.overlap,
+                use_float16=args.float16,
+                strength_scale=args.strength_scale,
+                out_dir=out_dir,
+            )
+        return
+
+    if args.apply_random_style_chain:
+        chain_dir = args.apply_random_style_chain.resolve()
+        if not chain_dir.is_dir():
+            sys.exit(f"Error: chain directory does not exist: {chain_dir}")
+        chain_files = sorted(set(
+            list(chain_dir.glob("*.yml")) + list(chain_dir.glob("*.yaml"))
+        ))
+        if not chain_files:
+            sys.exit(f"Error: no .yml/.yaml files found in {chain_dir}")
+        for image_path in image_paths:
+            chosen = random.choice(chain_files)
+            cmd_apply_style_chain(
+                image_path, chosen,
+                tile_size=args.tile_size,
+                overlap=args.overlap,
+                use_float16=args.float16,
+                strength_scale=args.strength_scale,
+                out_dir=out_dir,
+            )
         return
 
     if args.style_chain_overview:
@@ -164,7 +262,7 @@ def main() -> None:
         if not chain_dir.is_dir():
             sys.exit(f"Error: chain directory does not exist: {chain_dir}")
         cmd_style_chain_overview(
-            image_path, chain_dir,
+            image_paths[0], chain_dir,
             tile_size=args.tile_size,
             overlap=args.overlap,
             use_float16=args.float16,
@@ -173,6 +271,7 @@ def main() -> None:
         )
         return
 
+    # --style-overview
     catalog_path = _catalog.REPO_ROOT / "styles" / "catalog.json"
     if not catalog_path.exists():
         sys.exit(f"Error: catalog not found: {catalog_path}")
@@ -195,13 +294,13 @@ def main() -> None:
     pdf_tile_size: int = args.tile_size if args.tile_size is not None else 1024
     pdf_overlap: int = args.overlap if args.overlap is not None else 128
 
-    print(f"Source image : {image_path}")
+    print(f"Source image : {image_paths[0]}")
     print(f"Styles       : {len(styles)} style(s)" + (f" (filtered: '{args.apply_style}')" if args.apply_style else ""))
     print(f"Tile size    : {pdf_tile_size} px  overlap: {pdf_overlap} px")
     print()
 
     cmd_style_overview(
-        image_path, styles,
+        image_paths[0], styles,
         tile_size=pdf_tile_size,
         overlap=pdf_overlap,
         strength=1.0,
@@ -212,3 +311,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

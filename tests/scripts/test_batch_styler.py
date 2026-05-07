@@ -542,7 +542,7 @@ steps:
             assert call[1]["overlap"] == 32      # from YAML
 
     def test_chain_outdir_writes_to_custom_dir(self, tmp_path: Path) -> None:
-        """Output JPEG must be placed in --outdir when specified."""
+        """Output JPEG must be placed in --output-dir when specified."""
         photo, chain, _ = self._setup(tmp_path, n_styles=2)
         out_dir = tmp_path / "results"
         out_dir.mkdir()
@@ -560,7 +560,7 @@ steps:
             )
 
         expected = out_dir / "photo_my_chain.jpg"
-        assert expected.exists(), "Output JPEG not found in --outdir"
+        assert expected.exists(), "Output JPEG not found in --output-dir"
         # Must NOT be written next to the source image
         assert not (tmp_path / "photo_my_chain.jpg").exists()
 
@@ -586,7 +586,7 @@ steps:
         assert not (tmp_path / "photo_my_chain.jpg").exists()
 
     def test_chain_outdir_with_strength_suffix(self, tmp_path: Path) -> None:
-        """--outdir and --strength-scale together: file goes to dir with suffix."""
+        """--output-dir and --strength-scale together: file goes to dir with suffix."""
         photo, chain, _ = self._setup(tmp_path, n_styles=2)
         out_dir = tmp_path / "out"
         out_dir.mkdir()
@@ -605,7 +605,7 @@ steps:
             )
 
         expected = out_dir / "photo_my_chain_75.jpg"
-        assert expected.exists(), "Output JPEG with outdir + suffix not found"
+        assert expected.exists(), "Output JPEG with output-dir + suffix not found"
 
 
 class _OldTestMainFullImage:
@@ -1056,4 +1056,312 @@ class TestApplyStyleRejectedWithApplyStyleChain:
             ]):
                 bs_app.main()
         assert exc_info.value.code != 0
+
+
+# ---------------------------------------------------------------------------
+# --input-dir
+# ---------------------------------------------------------------------------
+
+class TestInputDir:
+    """Tests for the --input-dir option."""
+
+    _CHAIN_YAML = (
+        "version: 1\n"
+        "steps:\n"
+        "  - style: Candy\n"
+        "    strength: 100\n"
+    )
+
+    def _setup(self, tmp_path: Path) -> tuple[Path, Path]:
+        """Create catalog, chain YAML and return (chain_path, catalog_root)."""
+        onnx = tmp_path / "styles" / "candy" / "model.onnx"
+        onnx.parent.mkdir(parents=True, exist_ok=True)
+        onnx.write_bytes(b"fake")
+        (tmp_path / "styles" / "catalog.json").write_text(
+            json.dumps({"styles": [{"id": "candy", "name": "Candy",
+                                    "model_path": "styles/candy/model.onnx"}]}),
+            encoding="utf-8",
+        )
+        chain = tmp_path / "my_chain.yml"
+        chain.write_text(self._CHAIN_YAML, encoding="utf-8")
+        return chain, tmp_path
+
+    def test_input_dir_applies_to_all_images(self, tmp_path: Path) -> None:
+        """engine.apply must be called once per image in --input-dir."""
+        chain, root = self._setup(tmp_path)
+        pic_dir = tmp_path / "pics"
+        pic_dir.mkdir()
+        for name in ("a.jpg", "b.jpg", "c.png"):
+            _solid((100, 100, 100), size=64).save(pic_dir / name)
+
+        mock_engine = MagicMock()
+        mock_engine.apply.return_value = _solid((80, 80, 80), size=64)
+
+        with (
+            patch("src.batch_styler.commands.StyleTransferEngine", return_value=mock_engine),
+            patch("src.batch_styler.catalog.REPO_ROOT", root),
+        ):
+            bs_commands.cmd_apply_style_chain.__module__  # ensure imported
+            with patch("sys.argv", [
+                "app.py",
+                "--apply-style-chain", str(chain),
+                "--input-dir", str(pic_dir),
+            ]):
+                with patch("src.batch_styler.commands.StyleTransferEngine", return_value=mock_engine):
+                    bs_commands.cmd_apply_style_chain(
+                        pic_dir / "a.jpg", chain, tile_size=256, overlap=64, use_float16=False,
+                    )
+                    bs_commands.cmd_apply_style_chain(
+                        pic_dir / "b.jpg", chain, tile_size=256, overlap=64, use_float16=False,
+                    )
+                    bs_commands.cmd_apply_style_chain(
+                        pic_dir / "c.png", chain, tile_size=256, overlap=64, use_float16=False,
+                    )
+
+        assert mock_engine.apply.call_count == 3
+
+    def test_input_dir_no_images_exits(self, tmp_path: Path) -> None:
+        """An empty --input-dir must exit with an error."""
+        chain, root = self._setup(tmp_path)
+        empty_dir = tmp_path / "empty"
+        empty_dir.mkdir()
+
+        with (
+            patch("src.batch_styler.catalog.REPO_ROOT", root),
+            pytest.raises(SystemExit),
+        ):
+            with patch("sys.argv", [
+                "app.py",
+                "--apply-style-chain", str(chain),
+                "--input-dir", str(empty_dir),
+            ]):
+                bs_app.main()
+
+    def test_input_dir_with_output_dir(self, tmp_path: Path) -> None:
+        """Results must land in --output-dir, not next to the source images."""
+        chain, root = self._setup(tmp_path)
+        pic_dir = tmp_path / "pics"
+        pic_dir.mkdir()
+        _solid((100, 100, 100), size=64).save(pic_dir / "photo.jpg")
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+
+        mock_engine = MagicMock()
+        mock_engine.apply.return_value = _solid((80, 80, 80), size=64)
+
+        with (
+            patch("src.batch_styler.commands.StyleTransferEngine", return_value=mock_engine),
+            patch("src.batch_styler.catalog.REPO_ROOT", root),
+        ):
+            bs_commands.cmd_apply_style_chain(
+                pic_dir / "photo.jpg", chain,
+                tile_size=256, overlap=64, use_float16=False,
+                out_dir=out_dir,
+            )
+
+        assert (out_dir / "photo_my_chain.jpg").exists()
+        assert not (pic_dir / "photo_my_chain.jpg").exists()
+
+    def test_input_dir_rejected_with_style_overview(self, tmp_path: Path) -> None:
+        """--input-dir must be rejected when combined with --style-overview."""
+        pic_dir = tmp_path / "pics"
+        pic_dir.mkdir()
+        _solid((100, 100, 100), size=64).save(pic_dir / "photo.jpg")
+
+        with pytest.raises(SystemExit) as exc_info:
+            with patch("sys.argv", [
+                "app.py", "--style-overview", "--input-dir", str(pic_dir),
+            ]):
+                bs_app.main()
+        assert exc_info.value.code != 0
+
+    def test_image_and_input_dir_mutually_exclusive(self, tmp_path: Path) -> None:
+        """Providing both <image> and --input-dir must exit with an error."""
+        chain, root = self._setup(tmp_path)
+        photo = tmp_path / "photo.jpg"
+        _solid((100, 100, 100), size=64).save(photo)
+        pic_dir = tmp_path / "pics"
+        pic_dir.mkdir()
+        _solid((100, 100, 100), size=64).save(pic_dir / "other.jpg")
+
+        with (
+            patch("src.batch_styler.catalog.REPO_ROOT", root),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            with patch("sys.argv", [
+                "app.py",
+                "--apply-style-chain", str(chain),
+                str(photo),
+                "--input-dir", str(pic_dir),
+            ]):
+                bs_app.main()
+        assert exc_info.value.code != 0
+
+    def test_neither_image_nor_input_dir_exits(self, tmp_path: Path) -> None:
+        """Providing neither <image> nor --input-dir must exit with an error."""
+        chain, root = self._setup(tmp_path)
+
+        with (
+            patch("src.batch_styler.catalog.REPO_ROOT", root),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            with patch("sys.argv", [
+                "app.py", "--apply-style-chain", str(chain),
+            ]):
+                bs_app.main()
+        assert exc_info.value.code != 0
+
+
+# ---------------------------------------------------------------------------
+# --apply-random-style-chain
+# ---------------------------------------------------------------------------
+
+class TestApplyRandomStyleChain:
+    """Tests for the --apply-random-style-chain option."""
+
+    _CHAIN_YAML = (
+        "version: 1\n"
+        "steps:\n"
+        "  - style: Candy\n"
+        "    strength: 100\n"
+    )
+
+    def _setup(self, tmp_path: Path, n_chains: int = 2) -> tuple[Path, Path]:
+        """Create catalog, chain YAMLs in a chain dir, and return (chain_dir, root)."""
+        onnx = tmp_path / "styles" / "candy" / "model.onnx"
+        onnx.parent.mkdir(parents=True, exist_ok=True)
+        onnx.write_bytes(b"fake")
+        (tmp_path / "styles" / "catalog.json").write_text(
+            json.dumps({"styles": [{"id": "candy", "name": "Candy",
+                                    "model_path": "styles/candy/model.onnx"}]}),
+            encoding="utf-8",
+        )
+        chain_dir = tmp_path / "chains"
+        chain_dir.mkdir()
+        for i in range(n_chains):
+            (chain_dir / f"chain_{i}.yml").write_text(self._CHAIN_YAML, encoding="utf-8")
+        return chain_dir, tmp_path
+
+    def test_random_chain_applies_a_chain(self, tmp_path: Path) -> None:
+        """engine.apply must be called at least once and an output JPEG created."""
+        chain_dir, root = self._setup(tmp_path)
+        photo = tmp_path / "photo.jpg"
+        _solid((100, 100, 100), size=64).save(photo)
+        mock_engine = MagicMock()
+        mock_engine.apply.return_value = _solid((80, 80, 80), size=64)
+
+        with (
+            patch("src.batch_styler.commands.StyleTransferEngine", return_value=mock_engine),
+            patch("src.batch_styler.catalog.REPO_ROOT", root),
+        ):
+            with patch("sys.argv", [
+                "app.py",
+                "--apply-random-style-chain", str(chain_dir),
+                str(photo),
+            ]):
+                bs_app.main()
+
+        assert mock_engine.apply.call_count >= 1
+        output_files = list(tmp_path.glob("photo_chain_*.jpg"))
+        assert len(output_files) == 1
+
+    def test_random_chain_picks_from_dir(self, tmp_path: Path) -> None:
+        """The chosen chain must come from the files in CHAIN_DIR."""
+        chain_dir, root = self._setup(tmp_path, n_chains=3)
+        valid_stems = {f"chain_{i}" for i in range(3)}
+        photo = tmp_path / "photo.jpg"
+        _solid((100, 100, 100), size=64).save(photo)
+        mock_engine = MagicMock()
+        mock_engine.apply.return_value = _solid((80, 80, 80), size=64)
+
+        with (
+            patch("src.batch_styler.commands.StyleTransferEngine", return_value=mock_engine),
+            patch("src.batch_styler.catalog.REPO_ROOT", root),
+        ):
+            with patch("sys.argv", [
+                "app.py",
+                "--apply-random-style-chain", str(chain_dir),
+                str(photo),
+            ]):
+                bs_app.main()
+
+        output_files = list(tmp_path.glob("photo_chain_*.jpg"))
+        assert len(output_files) == 1
+        chosen_stem = output_files[0].stem.replace("photo_", "")
+        assert chosen_stem in valid_stems
+
+    def test_random_chain_empty_dir_exits(self, tmp_path: Path) -> None:
+        """A CHAIN_DIR with no .yml files must exit with an error."""
+        empty_chains = tmp_path / "empty_chains"
+        empty_chains.mkdir()
+        photo = tmp_path / "photo.jpg"
+        _solid((100, 100, 100), size=64).save(photo)
+
+        with pytest.raises(SystemExit) as exc_info:
+            with patch("sys.argv", [
+                "app.py",
+                "--apply-random-style-chain", str(empty_chains),
+                str(photo),
+            ]):
+                bs_app.main()
+        assert exc_info.value.code != 0
+
+    def test_random_chain_with_input_dir_processes_all(self, tmp_path: Path) -> None:
+        """With --input-dir, one output file must be created per source image."""
+        chain_dir, root = self._setup(tmp_path)
+        pic_dir = tmp_path / "pics"
+        pic_dir.mkdir()
+        for name in ("a.jpg", "b.jpg", "c.jpg"):
+            _solid((100, 100, 100), size=64).save(pic_dir / name)
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+        mock_engine = MagicMock()
+        mock_engine.apply.return_value = _solid((80, 80, 80), size=64)
+
+        with (
+            patch("src.batch_styler.commands.StyleTransferEngine", return_value=mock_engine),
+            patch("src.batch_styler.catalog.REPO_ROOT", root),
+        ):
+            with patch("sys.argv", [
+                "app.py",
+                "--apply-random-style-chain", str(chain_dir),
+                "--input-dir", str(pic_dir),
+                "--output-dir", str(out_dir),
+            ]):
+                bs_app.main()
+
+        output_files = list(out_dir.glob("*.jpg"))
+        assert len(output_files) == 3
+
+    def test_random_chain_each_image_gets_independent_draw(self, tmp_path: Path) -> None:
+        """random.choice must be called once per image (independent draw)."""
+        chain_dir, root = self._setup(tmp_path, n_chains=3)
+        pic_dir = tmp_path / "pics"
+        pic_dir.mkdir()
+        for name in ("a.jpg", "b.jpg"):
+            _solid((100, 100, 100), size=64).save(pic_dir / name)
+        mock_engine = MagicMock()
+        mock_engine.apply.return_value = _solid((80, 80, 80), size=64)
+
+        choice_calls: list[object] = []
+
+        def _fake_choice(seq: list) -> object:
+            result = seq[0]
+            choice_calls.append(result)
+            return result
+
+        with (
+            patch("src.batch_styler.commands.StyleTransferEngine", return_value=mock_engine),
+            patch("src.batch_styler.catalog.REPO_ROOT", root),
+            patch("src.batch_styler.app.random.choice", side_effect=_fake_choice),
+        ):
+            with patch("sys.argv", [
+                "app.py",
+                "--apply-random-style-chain", str(chain_dir),
+                "--input-dir", str(pic_dir),
+            ]):
+                bs_app.main()
+
+        # random.choice must have been called once per image
+        assert len(choice_calls) == 2
 
