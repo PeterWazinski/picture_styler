@@ -1,4 +1,5 @@
 # PetersPictureStyler – style chain
+# Created: 2026-05-04 01:17
 version: 1
 tile_size: 1024
 tile_overlap: 128
@@ -7,5 +8,5 @@ steps:
   strength: 150
 - style: Akira Manga
   strength: 80
-- style: Cubism
-  strength: 80
+- style: Candy
+  strength: 44

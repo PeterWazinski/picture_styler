@@ -1,33 +1,83 @@
 {
   "chains": [
     {
-      "id": "dense",
-      "name": "Dense",
-      "description": "Abstract base with heavy Cubism overlay.",
-      "chain_path": "style_chains/dense/chain.yml",
-      "preview_path": "style_chains/dense/preview.jpg",
+      "id": "abstract_colors",
+      "name": "Abstract Colors",
+      "description": "Abstract base blended with Macke colour palette.",
+      "chain_path": "style_chains/abstract_colors/chain.yml",
+      "preview_path": "style_chains/abstract_colors/preview.jpg",
       "step_count": 2,
-      "tags": ["abstract", "geometric"],
+      "tags": ["abstract", "colorful"],
       "is_builtin": true
     },
     {
-      "id": "hundertwasser",
-      "name": "Hundertwasser",
-      "description": "Single-step Hundertwasser Works style.",
-      "chain_path": "style_chains/hundertwasser/chain.yml",
-      "preview_path": "style_chains/hundertwasser/preview.jpg",
-      "step_count": 1,
-      "tags": ["colorful", "organic"],
+      "id": "faint_manga",
+      "name": "Faint Manga",
+      "description": "Ukiyo-e foundation with a gentle Akira Manga overlay.",
+      "chain_path": "style_chains/faint_manga/chain.yml",
+      "preview_path": "style_chains/faint_manga/preview.jpg",
+      "step_count": 2,
+      "tags": ["manga", "soft"],
       "is_builtin": true
     },
     {
-      "id": "pastel",
-      "name": "Pastel",
-      "description": "Ukiyo-e base softened with Akira Manga and Cubism.",
-      "chain_path": "style_chains/pastel/chain.yml",
-      "preview_path": "style_chains/pastel/preview.jpg",
+      "id": "faint_red_anime",
+      "name": "Faint red Anime",
+      "description": "Candy warmth softened through Akira Manga and Tintin.",
+      "chain_path": "style_chains/faint_red_anime/chain.yml",
+      "preview_path": "style_chains/faint_red_anime/preview.jpg",
       "step_count": 3,
-      "tags": ["soft", "painterly"],
+      "tags": ["anime", "warm"],
+      "is_builtin": true
+    },
+    {
+      "id": "intense_cubism",
+      "name": "Intense Cubism",
+      "description": "Abstract base with heavy Cubism overlay.",
+      "chain_path": "style_chains/intense_cubism/chain.yml",
+      "preview_path": "style_chains/intense_cubism/preview.jpg",
+      "step_count": 2,
+      "tags": ["geometric", "abstract"],
+      "is_builtin": true
+    },
+    {
+      "id": "mosaical_patterns",
+      "name": "Mosaical Patterns",
+      "description": "MuchaWorks elegance broken into Mosaic fragments.",
+      "chain_path": "style_chains/mosaical_patterns/chain.yml",
+      "preview_path": "style_chains/mosaical_patterns/preview.jpg",
+      "step_count": 2,
+      "tags": ["mosaic", "decorative"],
+      "is_builtin": true
+    },
+    {
+      "id": "rainbow",
+      "name": "Rainbow",
+      "description": "Macke vibrancy amplified with an Anime colour burst.",
+      "chain_path": "style_chains/rainbow/chain.yml",
+      "preview_path": "style_chains/rainbow/preview.jpg",
+      "step_count": 2,
+      "tags": ["colorful", "vivid"],
+      "is_builtin": true
+    },
+    {
+      "id": "red_anime",
+      "name": "Red Anime",
+      "description": "Ukiyo-e warmth channelled through Akira Manga and Candy.",
+      "chain_path": "style_chains/red_anime/chain.yml",
+      "preview_path": "style_chains/red_anime/preview.jpg",
+      "step_count": 3,
+      "tags": ["anime", "warm"],
+      "is_builtin": true
+    },
+    {
+      "id": "yellow_red_pasty",
+      "name": "Yellow Red Pasty",
+      "description": "Starry Night glow layered with Abstract and Van Gogh.",
+      "chain_path": "style_chains/yellow_red_pasty/chain.yml",
+      "preview_path": "style_chains/yellow_red_pasty/preview.jpg",
+      "step_count": 3,
+      "tags": ["painterly", "warm"],
       "is_builtin": true
     }
   ]
