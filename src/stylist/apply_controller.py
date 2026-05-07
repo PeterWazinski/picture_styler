@@ -14,7 +14,7 @@ from PIL.Image import Image as PILImage
 from PySide6.QtCore import Qt, QEventLoop
 from PySide6.QtWidgets import QApplication, QMessageBox, QProgressDialog
 
-from src.stylist.apply_worker import ApplyWorker, is_gpu_crash as _is_gpu_crash
+from src.stylist.apply_worker import ApplyWorker, is_gpu_crash as _is_gpu_crash, is_oom_error as _is_oom_error
 
 if TYPE_CHECKING:
     from src.stylist.main_window import MainWindow
@@ -110,6 +110,19 @@ class ApplyController:
                 self.canvas.apply_button.setToolTip(_restart_tip)
                 self.canvas.reapply_button.setEnabled(False)
                 self.canvas.reapply_button.setToolTip(_restart_tip)
+            elif _is_oom_error(msg):
+                # Unload all ONNX sessions to release GPU/DirectML memory so the
+                # user can retry (possibly after reducing tile size in Settings).
+                self.engine.unload_all_models()  # type: ignore[attr-defined]
+                logger.warning("OOM: unloaded all ONNX sessions to recover GPU memory.")
+                QMessageBox.warning(  # type: ignore[call-arg]
+                    self, "Out of GPU Memory",
+                    "Not enough GPU memory to process the image at the current tile size.\n\n"
+                    "All style models have been unloaded to free memory.\n"
+                    "You can apply styles again \u2014 they will reload automatically.\n\n"
+                    "Tip: reduce the Tile Size in File \u2192 Settings (e.g. 512 px) "
+                    "to lower memory usage.",
+                )
             else:
                 QMessageBox.critical(self, "Apply Error", msg)  # type: ignore[call-arg]
             return None

@@ -52,15 +52,29 @@ def e2e_registry(tmp_path: Path) -> StyleRegistry:
 
 @pytest.fixture()
 def e2e_engine(tmp_path: Path) -> StyleTransferEngine:
-    """Engine with a mocked ONNX session for 'e2e-style'."""
+    """Engine with a mocked ONNX session for 'e2e-style'.
+
+    load_model is patched to always re-inject the mock session so that the
+    engine continues to work after ``unload_all_models()`` (called by
+    ``_open_photo``) without requiring a real .onnx file on disk.
+    """
+    mock_session = make_mock_session(output_colour=(0, 200, 0))
     engine = StyleTransferEngine()
     with (
         patch("src.core.engine._ORT_AVAILABLE", True),
         patch("src.core.engine.ort") as mock_ort,
         patch.object(Path, "exists", return_value=True),
     ):
-        mock_ort.InferenceSession.return_value = make_mock_session(output_colour=(0, 200, 0))
+        mock_ort.InferenceSession.return_value = mock_session
         engine.load_model("e2e-style", Path("dummy/model.onnx"))
+
+    # Override load_model so any future reload (after unload_all_models) also
+    # succeeds without needing a real file.
+    def _reload(style_id: str, model_path: object, *, tensor_layout: str = "nchw") -> None:
+        engine._sessions[style_id] = mock_session
+        engine._model_meta[style_id] = tensor_layout
+
+    engine.load_model = _reload  # type: ignore[method-assign]
     return engine
 
 

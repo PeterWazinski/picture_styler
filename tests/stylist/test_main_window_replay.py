@@ -62,13 +62,20 @@ def _make_window(qtbot, tmp_path: Path, autosave: bool = True) -> tuple[MainWind
     registry.add(style)
 
     engine = StyleTransferEngine()
+    _ts_session = make_mock_session()
     with (
         patch("src.core.engine._ORT_AVAILABLE", True),
         patch("src.core.engine.ort") as mock_ort,
         patch.object(Path, "exists", return_value=True),
     ):
-        mock_ort.InferenceSession.return_value = make_mock_session()
+        mock_ort.InferenceSession.return_value = _ts_session
         engine.load_model("test-style", Path("dummy/model.onnx"))
+
+    def _reload(style_id: str, model_path: object, *, tensor_layout: str = "nchw") -> None:
+        engine._sessions[style_id] = _ts_session
+        engine._model_meta[style_id] = tensor_layout
+
+    engine.load_model = _reload  # type: ignore[method-assign]
 
     settings = AppSettings(autosave_style_log=autosave)
     window = MainWindow(
@@ -96,7 +103,7 @@ def _do_apply(window: MainWindow, engine: MagicMock) -> None:
     result = _dummy_image()
     engine.apply = MagicMock(return_value=result)
     window._current_style_name = "Test Style"
-    with patch("src.stylist.main_window.QMessageBox.critical"):
+    with patch("src.stylist.apply_controller.QMessageBox.critical"):
         window._apply_style("test-style", 1.0)
 
 
@@ -104,7 +111,7 @@ def _do_reapply(window: MainWindow, engine: MagicMock, strength: float = 1.5) ->
     result = _dummy_image()
     engine.apply = MagicMock(return_value=result)
     window._current_style_name = "Test Style"
-    with patch("src.stylist.main_window.QMessageBox.critical"):
+    with patch("src.stylist.apply_controller.QMessageBox.critical"):
         window._reapply_style("test-style", strength)
 
 
@@ -153,7 +160,7 @@ class TestStyleChain:
         window._current_style_name = "Test Style"
         # Need a _styled_photo_input for _reapply_style_strength
         window._styled_photo_input = _dummy_image()
-        with patch("src.stylist.main_window.QMessageBox.critical"):
+        with patch("src.stylist.apply_controller.QMessageBox.critical"):
             window._reapply_style_strength("test-style", 0.75)
         assert window._style_log[-1]["strength"] == 75
 

@@ -216,13 +216,23 @@ def _make_e2e_window(qtbot, tmp_path: Path) -> tuple[MainWindow, MagicMock]:
     registry.add(style)
 
     engine = StyleTransferEngine()
+    _w_session = make_mock_session()
     with (
         patch("src.core.engine._ORT_AVAILABLE", True),
         patch("src.core.engine.ort") as mock_ort,
         patch.object(Path, "exists", return_value=True),
     ):
-        mock_ort.InferenceSession.return_value = make_mock_session()
+        mock_ort.InferenceSession.return_value = _w_session
         engine.load_model("w-style", Path("dummy/model.onnx"))
+
+    def _reload(style_id: str, model_path: object, *, tensor_layout: str = "nchw") -> None:
+        engine._sessions[style_id] = _w_session
+        engine._model_meta[style_id] = tensor_layout
+
+    engine.load_model = _reload  # type: ignore[method-assign]
+    # These tests don't exercise OOM recovery; keep the session alive across
+    # _open_photo so that _apply_style (called without _on_style_selected) works.
+    engine.unload_all_models = lambda: None  # type: ignore[method-assign]
 
     window = MainWindow(
         registry=registry,
@@ -253,7 +263,7 @@ class TestMainWindowErrorHandling:
 
         engine.apply = MagicMock(side_effect=RuntimeError("boom"))
 
-        with patch("src.stylist.main_window.QMessageBox.critical"):
+        with patch("src.stylist.apply_controller.QMessageBox.critical"):
             window._apply_style("w-style", 1.0)
 
         # If the cursor stack is clean, overrideShape() returns None
@@ -268,7 +278,7 @@ class TestMainWindowErrorHandling:
 
         engine.apply = MagicMock(side_effect=RuntimeError("boom"))
 
-        with patch("src.stylist.main_window.QMessageBox.critical"):
+        with patch("src.stylist.apply_controller.QMessageBox.critical"):
             window._apply_style("w-style", 1.0)
 
         assert window.canvas.apply_button.isEnabled()
@@ -282,7 +292,7 @@ class TestMainWindowErrorHandling:
 
         engine.apply = MagicMock(side_effect=RuntimeError("boom"))
 
-        with patch("src.stylist.main_window.QMessageBox.critical"):
+        with patch("src.stylist.apply_controller.QMessageBox.critical"):
             window._apply_style("w-style", 1.0)
 
         assert window._styled_photo is None

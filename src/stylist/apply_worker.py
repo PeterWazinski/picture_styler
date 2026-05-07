@@ -35,6 +35,15 @@ def is_gpu_crash(message: str) -> bool:
     return any(code in message for code in _DML_CRASH_CODES)
 
 
+_OOM_KEYWORDS = ("out of memory", "insufficient", "oom", "error code: 6", ": 6 :")
+
+
+def is_oom_error(message: str) -> bool:
+    """Return True if *message* signals a GPU/DirectML out-of-memory condition."""
+    lower = message.lower()
+    return any(k in lower for k in _OOM_KEYWORDS)
+
+
 def _friendly_error(exc: Exception) -> str:
     """Return a human-readable error message, with extra guidance for GPU driver crashes."""
     msg = str(exc)

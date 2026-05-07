@@ -314,6 +314,10 @@ class MainWindow(ApplyController, StyleChainController, ChainGalleryController, 
 
         self._settings.last_open_dir = str(path.parent)
         self._settings.save()
+        # Free all cached ONNX sessions before loading a new photo so that GPU/
+        # DirectML memory from the previous session is released immediately.
+        # Models reload on demand when the next style is applied.
+        self.engine.unload_all_models()
         self._current_photo = image
         self._current_photo_path = path
         self._styled_photo = None          # clear any previous styled result
