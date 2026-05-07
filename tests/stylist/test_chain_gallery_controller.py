@@ -214,6 +214,42 @@ class TestApplyBuiltinChain:
 
         assert len(apply_calls) == 1  # fresh: _apply_style called even though _styled_photo was set
 
+    def test_canvas_active_style_set_to_last_step_after_apply_chain(
+        self, qtbot, tmp_path: Path
+    ) -> None:
+        """After a chain runs, canvas._current_style_id must equal the last step's id.
+
+        This ensures the strength slider fires reapply_strength_requested correctly
+        instead of silently doing nothing.
+        """
+        window, engine, chain = _make_window(
+            qtbot, tmp_path,
+            style_names=["Ukiyo-e", "Cubism"],
+            chain_steps=[
+                {"style": "Ukiyo-e", "strength": 100},
+                {"style": "Cubism", "strength": 80},
+            ],
+        )
+        window._current_photo = _dummy_image()
+
+        def fake_apply(style_id: str, strength: float) -> None:
+            window._styled_photo = _dummy_image()
+            window._style_log = [{"style": window._current_style_name, "strength": int(strength * 100)}]
+
+        def fake_reapply(style_id: str, strength: float) -> None:
+            window._style_log.append({"style": window._current_style_name, "strength": int(strength * 100)})
+
+        with (
+            patch.object(window, "_apply_style", side_effect=fake_apply),
+            patch.object(window, "_reapply_style", side_effect=fake_reapply),
+            patch("src.stylist.chain_gallery_controller._get_project_root", return_value=tmp_path),
+        ):
+            window._apply_builtin_chain(chain)
+
+        assert window.canvas._current_style_id == "cubism", (
+            "canvas._current_style_id must be the last chain step's id after apply"
+        )
+
     def test_unknown_style_shows_error(self, qtbot, tmp_path: Path) -> None:
         window, engine, chain = _make_window(
             qtbot, tmp_path,
@@ -285,6 +321,32 @@ class TestAppendBuiltinChain:
             window._append_builtin_chain(chain)
 
         assert len(apply_calls) == 1
+
+    def test_canvas_active_style_set_to_last_step_after_append_chain(
+        self, qtbot, tmp_path: Path
+    ) -> None:
+        """After append, canvas._current_style_id must equal the last step's id."""
+        window, engine, chain = _make_window(
+            qtbot, tmp_path,
+            style_names=["Ukiyo-e"],
+            chain_steps=[{"style": "Ukiyo-e", "strength": 100}],
+        )
+        window._current_photo = _dummy_image()
+        window._styled_photo = _dummy_image()
+        window._style_log = [{"style": "Previous", "strength": 80}]
+
+        def fake_reapply(style_id: str, strength: float) -> None:
+            window._style_log.append({"style": window._current_style_name, "strength": int(strength * 100)})
+
+        with (
+            patch.object(window, "_reapply_style", side_effect=fake_reapply),
+            patch("src.stylist.chain_gallery_controller._get_project_root", return_value=tmp_path),
+        ):
+            window._append_builtin_chain(chain)
+
+        assert window.canvas._current_style_id == "ukiyo-e", (
+            "canvas._current_style_id must be the last chain step's id after append"
+        )
 
 
 # ---------------------------------------------------------------------------

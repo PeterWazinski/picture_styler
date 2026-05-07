@@ -241,6 +241,11 @@ class ChainGalleryController:
             else:
                 self._reapply_style(style_id, step.strength / 100.0)
 
+        # Sync the canvas so the strength slider knows which style is active.
+        # Without this, reapply_strength_requested fires with a stale style_id
+        # (or no style_id at all) and the slider has no effect after a chain run.
+        self.canvas.set_active_style(style_id)
+        self._current_style_name = sc.steps[-1].style
         self._status.showMessage(f"Chain applied: {chain.name}")
 
     # ------------------------------------------------------------------
