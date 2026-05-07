@@ -16,7 +16,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from PIL import Image as PILImage
-from PySide6.QtWidgets import QFileDialog, QMessageBox
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox, QProgressDialog
 
 from src.core.chain_models import BuiltinChainModel
 from src.core.style_chain_schema import load_style_chain, dump_style_chain, StyleChain, ChainStep
@@ -59,6 +60,63 @@ def _save_placeholder_preview(dest: Path, size: int = 256) -> None:
     placeholder = PILImage.new("RGB", (size, size), color=(100, 100, 100))
     dest.parent.mkdir(parents=True, exist_ok=True)
     placeholder.save(str(dest), "JPEG", quality=85)
+
+
+def _run_arch_preview(
+    window: "MainWindow",
+    sample: Path,
+    steps: list[tuple[str, float]],
+    preview_path: Path,
+    root: Path,
+) -> None:
+    """Generate a styled preview from *sample* (arch.png) and save to *preview_path*.
+
+    Shows a modal :class:`QProgressDialog` while each style step runs so the
+    user can see "Applying style 2 of 4" instead of a frozen window.
+    """
+    total = len(steps)
+    progress = QProgressDialog(
+        "Generating preview…", None, 0, total, window  # type: ignore[call-arg]
+    )
+    progress.setWindowTitle("Generating Thumbnail")
+    progress.setWindowModality(Qt.WindowModal)  # type: ignore[attr-defined]
+    progress.setMinimumWidth(320)
+    progress.setMinimumDuration(0)
+    progress.setValue(0)
+    QApplication.processEvents()
+
+    try:
+        img = PILImage.open(str(sample)).convert("RGB")
+        for idx, (style_name, strength) in enumerate(steps, start=1):
+            progress.setLabelText(f"Applying style {idx} of {total}: {style_name}")
+            progress.setValue(idx - 1)
+            QApplication.processEvents()
+
+            style_id = window._resolve_style_id_by_name(style_name)  # type: ignore[attr-defined]
+            if style_id is None:
+                raise ValueError(f"Style not found in catalog: '{style_name}'")
+            if not window.engine.is_loaded(style_id):  # type: ignore[attr-defined]
+                style_obj = window.registry.get(style_id)  # type: ignore[attr-defined]
+                window.engine.load_model(  # type: ignore[attr-defined]
+                    style_id,
+                    style_obj.model_path_resolved(root),
+                    tensor_layout=style_obj.tensor_layout,
+                )
+            img = window.engine.apply(img, style_id, strength)  # type: ignore[attr-defined]
+
+        progress.setValue(total)
+        QApplication.processEvents()
+        _save_preview(img, preview_path)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Preview generation from arch.png failed: %s", exc)
+        _save_placeholder_preview(preview_path)
+        QMessageBox.warning(  # type: ignore[call-arg]
+            window, "Preview Generation Failed",
+            f"Could not generate preview from arch.png:\n{exc}\n\n"
+            "A grey placeholder has been saved instead.",
+        )
+    finally:
+        progress.close()
 
 
 def _rmtree_force_remove(func, path, exc_info) -> None:  # noqa: ANN001
@@ -329,30 +387,8 @@ class ChainGalleryController:
         if want_preview:
             sample = _get_bundled_data_root() / "sample_images" / "arch.png"
             if sample.exists():
-                try:
-                    img = PILImage.open(str(sample)).convert("RGB")
-                    # Run the chain to generate a styled preview
-                    for step in sc.steps:
-                        style_id = self._resolve_style_id_by_name(step.style)
-                        if style_id is None:
-                            raise ValueError(f"Style not found in catalog: '{step.style}'")
-                        if not self.engine.is_loaded(style_id):
-                            style_obj = self.registry.get(style_id)
-                            self.engine.load_model(
-                                style_id,
-                                style_obj.model_path_resolved(root),
-                                tensor_layout=style_obj.tensor_layout,
-                            )
-                        img = self.engine.apply(img, style_id, step.strength / 100.0)
-                    _save_preview(img, preview_path)
-                except Exception as exc:  # noqa: BLE001
-                    logger.warning("Preview generation failed: %s", exc)
-                    _save_placeholder_preview(preview_path)
-                    QMessageBox.warning(  # type: ignore[call-arg]
-                        self, "Preview Generation Failed",
-                        f"Could not generate preview from arch.png:\n{exc}\n\n"
-                        "A grey placeholder has been saved instead.",
-                    )
+                steps_list = [(step.style, step.strength / 100.0) for step in sc.steps]
+                _run_arch_preview(self, sample, steps_list, preview_path, root)
             else:
                 logger.warning("arch.png not found at %s — using placeholder", sample)
                 _save_placeholder_preview(preview_path)
@@ -430,30 +466,11 @@ class ChainGalleryController:
             root_bundled = _get_bundled_data_root()
             sample = root_bundled / "sample_images" / "arch.png"
             if sample.exists():
-                try:
-                    img = PILImage.open(str(sample)).convert("RGB")
-                    for step in self._style_log:  # type: ignore[attr-defined]
-                        style_name = str(step["style"])
-                        style_id = self._resolve_style_id_by_name(style_name)  # type: ignore[attr-defined]
-                        if style_id is None:
-                            raise ValueError(f"Style not found in catalog: '{style_name}'")
-                        if not self.engine.is_loaded(style_id):  # type: ignore[attr-defined]
-                            style_obj = self.registry.get(style_id)  # type: ignore[attr-defined]
-                            self.engine.load_model(  # type: ignore[attr-defined]
-                                style_id,
-                                style_obj.model_path_resolved(root),
-                                tensor_layout=style_obj.tensor_layout,
-                            )
-                        img = self.engine.apply(img, style_id, int(step["strength"]) / 100.0)  # type: ignore[attr-defined]
-                    _save_preview(img, preview_path)
-                except Exception as exc:  # noqa: BLE001
-                    logger.warning("Preview generation from arch.png failed: %s", exc)
-                    _save_placeholder_preview(preview_path)
-                    QMessageBox.warning(  # type: ignore[call-arg]
-                        self, "Preview Generation Failed",
-                        f"Could not generate preview from arch.png:\n{exc}\n\n"
-                        "A grey placeholder has been saved instead.",
-                    )
+                steps_list = [
+                    (str(step["style"]), int(step["strength"]) / 100.0)
+                    for step in self._style_log  # type: ignore[attr-defined]
+                ]
+                _run_arch_preview(self, sample, steps_list, preview_path, root)
             else:
                 logger.warning("arch.png not found at %s — using placeholder", sample)
                 _save_placeholder_preview(preview_path)
