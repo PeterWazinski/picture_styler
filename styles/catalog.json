@@ -191,6 +191,16 @@
       "preview_path": "styles/macke/preview.jpg",
       "is_builtin": false,
       "tensor_layout": "nchw"
+    },
+    {
+      "id": "klee",
+      "name": "Klee",
+      "description": "Paul Klee",
+      "author": "PeterWazinski",
+      "model_path": "styles/klee/model.onnx",
+      "preview_path": "styles/klee/preview.jpg",
+      "is_builtin": false,
+      "tensor_layout": "nchw"
     }
   ]
 }
