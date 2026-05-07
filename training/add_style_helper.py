@@ -180,6 +180,116 @@ def validate_style_id(name: str, existing_ids: set[str]) -> tuple[str, str]:
 
 
 # ---------------------------------------------------------------------------
+# Chain preview generation
+# ---------------------------------------------------------------------------
+
+def generate_chain_previews(
+    ctx: CatalogContext,
+    preview_size: int = 256,
+    preview_tile_size: int = 512,
+) -> None:
+    """Generate preview.jpg for every style chain that does not yet have one.
+
+    Applies each chain to the standard content image (arch.png) at a reduced
+    tile size for speed, then center-crops and resizes to *preview_size* x
+    *preview_size* pixels.  Also copies the generated previews into dist/ when
+    the compiled output directory already exists.
+
+    Args:
+        ctx:               CatalogContext from :func:`setup`.
+        preview_size:      Edge length of the output thumbnail in pixels.
+        preview_tile_size: ONNX tile size used during inference (smaller = faster).
+    """
+    import tempfile
+    from PIL import Image  # noqa: PLC0415
+
+    repo_root = ctx.repo_root
+    if str(repo_root) not in sys.path:
+        sys.path.insert(0, str(repo_root))
+
+    from src.batch_styler.commands import cmd_apply_style_chain  # noqa: PLC0415
+
+    chains_dir = repo_root / "style_chains"
+    chain_catalog_path = chains_dir / "catalog.json"
+    assert chain_catalog_path.exists(), f"Chain catalog not found: {chain_catalog_path}"
+
+    with open(chain_catalog_path, encoding="utf-8") as fh:
+        chain_catalog: dict = json.load(fh)
+
+    # Downscale content image so inference is fast (thumbnails only)
+    content_img = Image.open(ctx.content_image).convert("RGB")
+    w, h = content_img.size
+    if max(w, h) > preview_tile_size:
+        scale = preview_tile_size / max(w, h)
+        content_img = content_img.resize(
+            (int(w * scale), int(h * scale)), Image.LANCZOS
+        )
+
+    tmp_dir = pathlib.Path(tempfile.mkdtemp())
+    tmp_img = tmp_dir / "arch_preview.jpg"
+    content_img.save(str(tmp_img), "JPEG", quality=95)
+
+    dist_chains = repo_root / "dist" / "PetersPictureStyler" / "style_chains"
+    generated: list[str] = []
+    skipped: list[str] = []
+
+    try:
+        for entry in chain_catalog["chains"]:
+            chain_id: str = entry["id"]
+            chain_path = repo_root / entry["chain_path"]
+            preview_dest = chains_dir / chain_id / "preview.jpg"
+
+            if preview_dest.exists():
+                skipped.append(chain_id)
+                print(f"  skip  {chain_id}  (already exists)")
+                continue
+
+            print(f"  gen   {chain_id} ...", end="", flush=True)
+            try:
+                cmd_apply_style_chain(
+                    tmp_img, chain_path,
+                    tile_size=preview_tile_size,
+                    overlap=64,
+                    use_float16=False,
+                )
+                # cmd_apply_style_chain names the output: <image_stem>_<chain_stem>.jpg
+                # Every chain file is named chain.yml -> stem is "chain"
+                tmp_out = tmp_dir / "arch_preview_chain.jpg"
+                if not tmp_out.exists():
+                    print("  WARNING: expected output not found -- skipping")
+                    continue
+
+                result_img = Image.open(tmp_out).convert("RGB")
+                tmp_out.unlink()
+
+                # Center-crop to square, resize to thumbnail
+                rw, rh = result_img.size
+                side = min(rw, rh)
+                left = (rw - side) // 2
+                top = (rh - side) // 2
+                thumb = result_img.crop((left, top, left + side, top + side))
+                thumb = thumb.resize((preview_size, preview_size), Image.LANCZOS)
+                thumb.save(str(preview_dest), "JPEG", quality=85)
+                generated.append(chain_id)
+                print(f"  OK -> {preview_dest}")
+
+                if dist_chains.exists():
+                    dist_preview = dist_chains / chain_id / "preview.jpg"
+                    shutil.copy2(preview_dest, dist_preview)
+                    print(f"       also copied to dist\\")
+
+            except Exception as exc:  # noqa: BLE001
+                print(f"\n  ERROR for '{chain_id}': {exc}")
+
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+    print(f"\nDone.  Generated {len(generated)}: {generated or 'none'}")
+    if skipped:
+        print(f"Skipped {len(skipped)} already complete: {skipped}")
+
+
+# ---------------------------------------------------------------------------
 # Install
 # ---------------------------------------------------------------------------
 
