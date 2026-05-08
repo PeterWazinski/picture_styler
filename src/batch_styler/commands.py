@@ -28,12 +28,10 @@ from src.batch_styler.pdf_layout import (
 )
 from src.core.engine import StyleTransferEngine
 from src.core.models import StyleModel
+from src.core.photo_manager import JPEG_QUALITY
 from src.core.registry import StyleRegistry
 
 logging.basicConfig(level=logging.WARNING)
-
-# JPEG quality used when saving styled output images.
-JPEG_QUALITY: int = 92
 
 
 # ---------------------------------------------------------------------------

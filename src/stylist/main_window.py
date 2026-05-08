@@ -40,7 +40,7 @@ from src.core.chain_models import BuiltinChainModel
 from src.core.chain_registry import BuiltinChainRegistry
 from src.core.engine import StyleTransferEngine
 from src.core.models import StyleModel
-from src.core.photo_manager import PhotoManager, UnsupportedFormatError
+from src.core.photo_manager import JPEG_QUALITY, PhotoManager, UnsupportedFormatError
 from src.core.registry import StyleRegistry
 from src.core.settings import AppSettings
 from src.stylist.apply_controller import ApplyController
@@ -399,7 +399,7 @@ class MainWindow(ApplyController, StyleChainController, ChainGalleryController, 
             return
         path = Path(path_str)
         try:
-            self.photo_manager.save(self._styled_photo, path)
+            self.photo_manager.save(self._styled_photo, path, quality=JPEG_QUALITY)
         except Exception as exc:  # noqa: BLE001
             QMessageBox.critical(self, "Save Error", str(exc))
             return

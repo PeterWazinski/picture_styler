@@ -20,6 +20,10 @@ logger: logging.Logger = logging.getLogger(__name__)
 # Supported extensions (lower-cased)
 _SUPPORTED_SUFFIXES: frozenset[str] = frozenset({".jpg", ".jpeg", ".png"})
 
+# JPEG quality used when saving styled output images.
+# Used as the default in PhotoManager.save() and imported by batch_styler.commands.
+JPEG_QUALITY: int = 92
+
 # EXIF tag id for Orientation
 _EXIF_ORIENTATION_TAG: int = next(
     k for k, v in ExifTags.TAGS.items() if v == "Orientation"
@@ -164,7 +168,7 @@ class PhotoManager:
         self,
         image: Image.Image,
         path: Path,
-        quality: int = 95,
+        quality: int = JPEG_QUALITY,
         source_exif: Optional[Image.Image] = None,
     ) -> None:
         """Save *image* to *path* as JPEG or PNG.
