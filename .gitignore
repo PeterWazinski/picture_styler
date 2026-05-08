@@ -56,6 +56,9 @@ cover/
 # Temporary download folder (e.g. third-party ONNX models before integration)
 tmp/
 
+# Pre-trained model cache (large .pth files used by training notebooks)
+model_cache/
+
 # Translations
 *.mo
 *.pot
