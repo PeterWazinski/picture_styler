@@ -134,7 +134,7 @@ def _apply_chain_to_image(
     for step in chain.steps:
         style_model = registry.find_by_name(step.style)
         if style_model is None:
-            sys.exit(f"Error: style '{step.style}' not found in catalog.")
+            raise ValueError(f"style '{step.style}' not found in catalog.")
         model_path = style_model.model_path_resolved(_catalog.REPO_ROOT)
         if strength_scale is not None:
             effective_pct = min(300, round(step.strength * strength_scale / 100))

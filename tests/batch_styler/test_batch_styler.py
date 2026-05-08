@@ -1405,3 +1405,30 @@ class TestApplyRandomStyleChain:
         # random.choice must have been called once per image
         assert len(choice_calls) == 2
 
+
+# ---------------------------------------------------------------------------
+# _apply_chain_to_image — unit tests for the internal helper
+# ---------------------------------------------------------------------------
+
+class TestApplyChainToImageHelper:
+    """Unit tests for _apply_chain_to_image that bypass the cmd_* boundary."""
+
+    def test_unknown_style_raises_value_error(self, tmp_path: Path) -> None:
+        """_apply_chain_to_image must raise ValueError (not SystemExit) for
+        an unknown style so callers can handle or report the error themselves."""
+        from src.batch_styler.commands import _apply_chain_to_image
+        from src.core.style_chain_schema import ChainStep, StyleChain
+        from unittest.mock import MagicMock
+
+        chain = StyleChain(steps=[ChainStep(style="NoSuchStyle", strength=100)])
+        registry = MagicMock()
+        registry.find_by_name.return_value = None  # every lookup misses
+        engine = MagicMock()
+        source = _solid((128, 64, 64), size=32)
+
+        with pytest.raises(ValueError, match="NoSuchStyle"):
+            _apply_chain_to_image(
+                source, chain, registry, engine,
+                tile_size=512, overlap=64, use_float16=False, strength_scale=None,
+            )
+
