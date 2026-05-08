@@ -18,11 +18,10 @@ error(message: str)
 """
 from __future__ import annotations
 
-import re
-
 from PIL.Image import Image as PILImage
 from PySide6.QtCore import QThread, Signal
 
+from src.core._oom import is_oom_error
 from src.core.engine import StyleTransferEngine
 
 # DirectML / D3D12 driver-crash error codes (hex) that appear in ONNX error strings.
@@ -35,18 +34,6 @@ _DML_CRASH_CODES = ("887A0020", "887A0006", "887A0005", "887A0007")
 def is_gpu_crash(message: str) -> bool:
     """Return True if *message* contains a DirectML/D3D12 driver-crash error code."""
     return any(code in message for code in _DML_CRASH_CODES)
-
-
-_OOM_KEYWORDS = ("out of memory", "insufficient", "error code: 6", ": 6 :")
-# Match "oom" as a whole word (case-insensitive) to avoid false positives from
-# words like "boom" or "room" that happen to contain the substring "oom".
-_OOM_WORD_RE = re.compile(r"\boom\b", re.IGNORECASE)
-
-
-def is_oom_error(message: str) -> bool:
-    """Return True if *message* signals a GPU/DirectML out-of-memory condition."""
-    lower = message.lower()
-    return bool(_OOM_WORD_RE.search(message)) or any(k in lower for k in _OOM_KEYWORDS)
 
 
 def _friendly_error(exc: Exception) -> str:

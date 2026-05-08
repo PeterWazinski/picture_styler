@@ -9,6 +9,7 @@ from typing import Callable
 import numpy as np
 from PIL import Image
 
+from src.core._oom import is_oom_error
 from src.core.tiling import TileInfo, merge_tiles, split_tiles
 
 logger: logging.Logger = logging.getLogger(__name__)
@@ -161,8 +162,7 @@ class StyleTransferEngine:
         that the exact DirectML / CUDA error wording is always written to
         ``app.log`` before the user-friendly OOMError is raised.
         """
-        _msg = str(exc).lower()
-        if any(k in _msg for k in ("out of memory", "insufficient", "oom", ": 6 :", "error code: 6")):
+        if is_oom_error(str(exc)):
             logger.error("OOM — raw ONNX error: %s", exc)
             raise OOMError(
                 f"GPU/DirectML out of memory processing a tile of size {tile_size}. "
