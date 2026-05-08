@@ -1,10 +1,12 @@
 """Small utility helpers shared across the stylist package."""
 from __future__ import annotations
 
+import functools
 import sys
 from pathlib import Path
 
 
+@functools.lru_cache(maxsize=1)
 def _get_project_root() -> Path:
     """Return the project root for resolving relative model paths.
 
