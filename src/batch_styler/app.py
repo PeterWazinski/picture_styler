@@ -295,12 +295,8 @@ def main() -> None:
     pdf_tile_size: int = args.tile_size if args.tile_size is not None else 1024
     pdf_overlap: int = args.overlap if args.overlap is not None else 128
 
-    print(f"Styles       : {len(styles)} style(s)" + (f" (filtered: '{args.apply_style}')" if args.apply_style else ""))
-    print(f"Tile size    : {pdf_tile_size} px  overlap: {pdf_overlap} px")
-    print()
-
     for image_path in image_paths:
-        print(f"Source image : {image_path}")
+        print(f"Creating style overview for {image_path}")
         cmd_style_overview(
             image_path, styles,
             tile_size=pdf_tile_size,

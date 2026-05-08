@@ -70,8 +70,6 @@ def cmd_style_overview(
             print(f"({idx}/{total}) Skipping '{style.name}' — model not found: {model_path}")
             continue
 
-        print(f"({idx}/{total}) Processing style '{style.name}' ...", end="", flush=True)
-        t0 = time.monotonic()
         try:
             engine.load_model(style.id, model_path, tensor_layout=style.tensor_layout)
             styled_full = engine.apply(
@@ -83,13 +81,10 @@ def cmd_style_overview(
                 use_float16=use_float16,
             )
         except Exception as exc:  # noqa: BLE001
-            print(f"\n  Error applying '{style.name}': {exc}")
+            print(f"  Error applying '{style.name}': {exc}")
             continue
         finally:
             engine.unload_model(style.id)
-
-        elapsed = round(time.monotonic() - t0)
-        print(f"\r({idx}/{total}) Processing style '{style.name}' in {elapsed} seconds.")
 
         for s in PDF_STRENGTHS:
             label = f"{style.name} ({int(s * 100)}%)"
@@ -101,7 +96,6 @@ def cmd_style_overview(
 
     font = _load_font(int(LABEL_H * 0.60))
     n_pages = (len(cells) + CELLS_PER_PAGE - 1) // CELLS_PER_PAGE
-    print(f"\nComposing {n_pages} PDF page(s) ...", flush=True)
 
     pages: list[Image.Image] = []
     for i in range(0, len(cells), CELLS_PER_PAGE):
@@ -117,7 +111,7 @@ def cmd_style_overview(
         resolution=DPI,
     )
 
-    print(f"PDF written: {pdf_path}")
+    print(f"Overview written to {pdf_path}")
 
 
 # ---------------------------------------------------------------------------
