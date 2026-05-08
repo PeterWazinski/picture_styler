@@ -293,4 +293,4 @@ def cmd_style_chain_overview(
         append_images=pages[1:],
         resolution=DPI,
     )
-    print(f"PDF written: {pdf_path}")
+    print(f"Overview written to {pdf_path}")

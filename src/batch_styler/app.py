@@ -262,6 +262,7 @@ def main() -> None:
         if not chain_dir.is_dir():
             sys.exit(f"Error: chain directory does not exist: {chain_dir}")
         for image_path in image_paths:
+            print(f"Creating style chain overview for {image_path}")
             cmd_style_chain_overview(
                 image_path, chain_dir,
                 tile_size=args.tile_size,
