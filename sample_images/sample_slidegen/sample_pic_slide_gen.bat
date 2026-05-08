@@ -5,7 +5,7 @@ setlocal enabledelayedexpansion
 set "SCRIPT_DIR=%~dp0"
 set "SAMPLE_PICS=%SCRIPT_DIR%..\sample_pics"
 set "STYLED_OUT=%SCRIPT_DIR%random_styled_images"
-set "CHAIN_DIR=%SCRIPT_DIR%..\..\dist\PetersPictureStyler\style_chains"
+set "CHAIN_DIR=%SCRIPT_DIR%style-chains"
 set "BATCHSTYLER=%SCRIPT_DIR%..\..\dist\PetersPictureStyler\BatchStyler.exe"
 set "SLIDEGEN=C:\Users\i09300076\OneDrive - Endress+Hauser\DEV\Python3\slideshow-maker\dist\slidegen.exe"
 set "SLIDESHOW=%SCRIPT_DIR%sample_pic_slideshow.mp4"

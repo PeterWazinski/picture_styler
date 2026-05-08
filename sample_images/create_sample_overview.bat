@@ -6,7 +6,8 @@ set "SCRIPT_DIR=%~dp0"
 set "SAMPLE_PICS=%SCRIPT_DIR%sample_pics"
 set "STYLE_OUT=%SCRIPT_DIR%style-overviews"
 set "CHAIN_OUT=%SCRIPT_DIR%style-chain-overviews"
-set "CHAIN_DIR=%SCRIPT_DIR%..\dist\PetersPictureStyler\style_chains"
+::set "CHAIN_DIR=%SCRIPT_DIR%..\dist\PetersPictureStyler\style_chains"
+set "CHAIN_DIR=%SCRIPT_DIR%style-chains"
 set "BATCHSTYLER=%SCRIPT_DIR%..\dist\PetersPictureStyler\BatchStyler.exe"
 
 :: ── sanity checks ───────────────────────────────────────────────────────────
