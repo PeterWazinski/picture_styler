@@ -1162,18 +1162,58 @@ class TestInputDir:
         assert (out_dir / "photo_my_chain.jpg").exists()
         assert not (pic_dir / "photo_my_chain.jpg").exists()
 
-    def test_input_dir_rejected_with_style_overview(self, tmp_path: Path) -> None:
-        """--input-dir must be rejected when combined with --style-overview."""
+    def test_input_dir_with_style_overview_produces_one_pdf_per_image(self, tmp_path: Path) -> None:
+        """--input-dir with --style-overview must call cmd_style_overview once per image."""
+        _, root = self._setup(tmp_path)
         pic_dir = tmp_path / "pics"
         pic_dir.mkdir()
-        _solid((100, 100, 100), size=64).save(pic_dir / "photo.jpg")
+        for name in ("a.jpg", "b.jpg"):
+            _solid((100, 100, 100), size=64).save(pic_dir / name)
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
 
-        with pytest.raises(SystemExit) as exc_info:
+        with (
+            patch("src.batch_styler.catalog.REPO_ROOT", root),
+            patch("src.batch_styler.app.cmd_style_overview") as mock_overview,
+        ):
             with patch("sys.argv", [
-                "app.py", "--style-overview", "--input-dir", str(pic_dir),
+                "app.py", "--style-overview",
+                "--input-dir", str(pic_dir),
+                "--output-dir", str(out_dir),
             ]):
                 bs_app.main()
-        assert exc_info.value.code != 0
+
+        assert mock_overview.call_count == 2
+        called_images = {call.args[0].name for call in mock_overview.call_args_list}
+        assert called_images == {"a.jpg", "b.jpg"}
+
+    def test_input_dir_with_style_chain_overview_produces_one_pdf_per_image(self, tmp_path: Path) -> None:
+        """--input-dir with --style-chain-overview must call cmd_style_chain_overview once per image."""
+        _, root = self._setup(tmp_path)
+        chain_dir = tmp_path / "chains"
+        chain_dir.mkdir()
+        (chain_dir / "chain_0.yml").write_text(self._CHAIN_YAML, encoding="utf-8")
+        pic_dir = tmp_path / "pics"
+        pic_dir.mkdir()
+        for name in ("a.jpg", "b.jpg", "c.png"):
+            _solid((100, 100, 100), size=64).save(pic_dir / name)
+        out_dir = tmp_path / "out"
+        out_dir.mkdir()
+
+        with (
+            patch("src.batch_styler.catalog.REPO_ROOT", root),
+            patch("src.batch_styler.app.cmd_style_chain_overview") as mock_chain_ov,
+        ):
+            with patch("sys.argv", [
+                "app.py", "--style-chain-overview", str(chain_dir),
+                "--input-dir", str(pic_dir),
+                "--output-dir", str(out_dir),
+            ]):
+                bs_app.main()
+
+        assert mock_chain_ov.call_count == 3
+        called_images = {call.args[0].name for call in mock_chain_ov.call_args_list}
+        assert called_images == {"a.jpg", "b.jpg", "c.png"}
 
     def test_image_and_input_dir_mutually_exclusive(self, tmp_path: Path) -> None:
         """Providing both <image> and --input-dir must exit with an error."""

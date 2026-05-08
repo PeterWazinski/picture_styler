@@ -45,11 +45,13 @@ _USAGE = (
     "        Apply all available styles to <image> at 100/150/200% strength and\n"
     "        write a DIN-A4 landscape PDF contact sheet.\n"
     "        Output: <image-dir>/<stem>_style_overview.pdf\n"
+    "        Combine with --input-dir to produce one PDF per image in a folder.\n"
     "\n"
     "  --style-chain-overview <chain-dir> <image>\n"
     "        Apply every .yml chain in <chain-dir> to <image> and write a\n"
     "        portrait A4 PDF with one result per chain.\n"
     "        Output: <image-dir>/<stem>_<chain-dir-name>_overview.pdf\n"
+    "        Combine with --input-dir to produce one PDF per image in a folder.\n"
     "\n"
     "COMMANDS THAT CREATE ONE OR MORE JPEG OUTPUT IMAGES\n"
     "  --apply-style-chain <chain.yml>\n"
@@ -67,8 +69,8 @@ _USAGE = (
     "\n"
     "OPTIONAL PARAMETERS (apply to all JPEG-producing commands)\n"
     "  --input-dir <dir>\n"
-    "        Process all JPEG/PNG images in <dir> instead of a single <image>.\n"
-    "\n"
+    "        Process all JPEG/PNG images in <dir> instead of a single <image>.\n"        "        Supported by all modes including --style-overview and\n"
+        "        --style-chain-overview (one PDF per image).\n"    "\n"
     "  --output-dir <dir>\n"
     "        Write output file(s) to <dir> instead of the source image folder.\n"
     "        <dir> must already exist.\n"
@@ -99,6 +101,8 @@ _USAGE = (
     "  BatchStyler.exe --apply-random-style-chain C:\\\\chains portrait.jpg\n"
     "  BatchStyler.exe --input-dir C:\\\\my_pics --apply-random-style-chain C:\\\\chains --output-dir C:\\\\out\n"
     "  BatchStyler.exe --style-chain-overview C:\\\\chains portrait.jpg\n"
+    "  BatchStyler.exe --style-overview --input-dir C:\\\\pics --output-dir C:\\\\out\n"
+    "  BatchStyler.exe --style-chain-overview C:\\\\chains --input-dir C:\\\\pics --output-dir C:\\\\out\n"
 )
 
 
@@ -192,10 +196,6 @@ def main() -> None:
         # --style-overview and --style-chain-overview historically require a positional image
         sys.exit("Error: provide either <image> or --input-dir.")
 
-    # --input-dir is not valid for PDF-overview commands
-    if args.input_dir is not None and (args.style_overview or args.style_chain_overview):
-        sys.exit("Error: --input-dir cannot be used with --style-overview or --style-chain-overview.")
-
     # ── resolve output dir ───────────────────────────────────────────────────
     out_dir: Path | None = None
     if args.output_dir is not None:
@@ -261,14 +261,15 @@ def main() -> None:
         chain_dir = args.style_chain_overview.resolve()
         if not chain_dir.is_dir():
             sys.exit(f"Error: chain directory does not exist: {chain_dir}")
-        cmd_style_chain_overview(
-            image_paths[0], chain_dir,
-            tile_size=args.tile_size,
-            overlap=args.overlap,
-            use_float16=args.float16,
-            strength_scale=args.strength_scale,
-            out_dir=out_dir,
-        )
+        for image_path in image_paths:
+            cmd_style_chain_overview(
+                image_path, chain_dir,
+                tile_size=args.tile_size,
+                overlap=args.overlap,
+                use_float16=args.float16,
+                strength_scale=args.strength_scale,
+                out_dir=out_dir,
+            )
         return
 
     # --style-overview
@@ -294,19 +295,20 @@ def main() -> None:
     pdf_tile_size: int = args.tile_size if args.tile_size is not None else 1024
     pdf_overlap: int = args.overlap if args.overlap is not None else 128
 
-    print(f"Source image : {image_paths[0]}")
     print(f"Styles       : {len(styles)} style(s)" + (f" (filtered: '{args.apply_style}')" if args.apply_style else ""))
     print(f"Tile size    : {pdf_tile_size} px  overlap: {pdf_overlap} px")
     print()
 
-    cmd_style_overview(
-        image_paths[0], styles,
-        tile_size=pdf_tile_size,
-        overlap=pdf_overlap,
-        strength=1.0,
-        use_float16=args.float16,
-        out_dir=out_dir,
-    )
+    for image_path in image_paths:
+        print(f"Source image : {image_path}")
+        cmd_style_overview(
+            image_path, styles,
+            tile_size=pdf_tile_size,
+            overlap=pdf_overlap,
+            strength=1.0,
+            use_float16=args.float16,
+            out_dir=out_dir,
+        )
 
 
 if __name__ == "__main__":
