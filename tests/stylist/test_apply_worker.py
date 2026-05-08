@@ -261,9 +261,12 @@ class TestMainWindowErrorHandling:
         window, engine = _make_e2e_window(qtbot, tmp_path)
         _load_photo(window, tmp_path)
 
-        engine.apply = MagicMock(side_effect=RuntimeError("boom"))
+        engine.apply = MagicMock(side_effect=RuntimeError("engine crashed"))
 
-        with patch("src.stylist.apply_controller.QMessageBox.critical"):
+        with (
+            patch("src.stylist.apply_controller.QMessageBox.critical"),
+            patch("src.stylist.apply_controller.QMessageBox.warning"),
+        ):
             window._apply_style("w-style", 1.0)
 
         # If the cursor stack is clean, overrideShape() returns None
@@ -276,9 +279,12 @@ class TestMainWindowErrorHandling:
         window, engine = _make_e2e_window(qtbot, tmp_path)
         _load_photo(window, tmp_path)
 
-        engine.apply = MagicMock(side_effect=RuntimeError("boom"))
+        engine.apply = MagicMock(side_effect=RuntimeError("engine crashed"))
 
-        with patch("src.stylist.apply_controller.QMessageBox.critical"):
+        with (
+            patch("src.stylist.apply_controller.QMessageBox.critical"),
+            patch("src.stylist.apply_controller.QMessageBox.warning"),
+        ):
             window._apply_style("w-style", 1.0)
 
         assert window.canvas.apply_button.isEnabled()
@@ -290,9 +296,12 @@ class TestMainWindowErrorHandling:
         window, engine = _make_e2e_window(qtbot, tmp_path)
         _load_photo(window, tmp_path)
 
-        engine.apply = MagicMock(side_effect=RuntimeError("boom"))
+        engine.apply = MagicMock(side_effect=RuntimeError("engine crashed"))
 
-        with patch("src.stylist.apply_controller.QMessageBox.critical"):
+        with (
+            patch("src.stylist.apply_controller.QMessageBox.critical"),
+            patch("src.stylist.apply_controller.QMessageBox.warning"),
+        ):
             window._apply_style("w-style", 1.0)
 
         assert window._styled_photo is None

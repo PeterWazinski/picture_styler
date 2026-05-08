@@ -9,6 +9,30 @@ from PIL import Image
 
 
 # ---------------------------------------------------------------------------
+# --run-slow option: opt-in to _takes_long tests
+# ---------------------------------------------------------------------------
+
+def pytest_addoption(parser: pytest.Parser) -> None:
+    parser.addoption(
+        "--run-slow",
+        action="store_true",
+        default=False,
+        help="Run tests whose names end in '_takes_long' (slow / high-memory).",
+    )
+
+
+def pytest_collection_modifyitems(
+    config: pytest.Config, items: list[pytest.Item]
+) -> None:
+    if config.getoption("--run-slow"):
+        return  # nothing to skip
+    skip = pytest.mark.skip(reason="slow test — pass --run-slow to run")
+    for item in items:
+        if "takes_long" in item.name:
+            item.add_marker(skip)
+
+
+# ---------------------------------------------------------------------------
 # Synthetic image fixtures (no disk I/O required)
 # ---------------------------------------------------------------------------
 

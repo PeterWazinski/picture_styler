@@ -22,7 +22,11 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 _DALI_DIR  = _REPO_ROOT / "sample_images" / "dali"
 _DALI_IMGS = sorted(_DALI_DIR.glob("*.jpg"))
 
-assert len(_DALI_IMGS) >= 2, f"Need ≥2 dali images in {_DALI_DIR}"
+if len(_DALI_IMGS) < 2:
+    pytest.skip(
+        f"Need ≥2 dali images in {_DALI_DIR} — skipping entire module",
+        allow_module_level=True,
+    )
 
 
 # ---------------------------------------------------------------------------

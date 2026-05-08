@@ -18,6 +18,8 @@ error(message: str)
 """
 from __future__ import annotations
 
+import re
+
 from PIL.Image import Image as PILImage
 from PySide6.QtCore import QThread, Signal
 
@@ -35,13 +37,16 @@ def is_gpu_crash(message: str) -> bool:
     return any(code in message for code in _DML_CRASH_CODES)
 
 
-_OOM_KEYWORDS = ("out of memory", "insufficient", "oom", "error code: 6", ": 6 :")
+_OOM_KEYWORDS = ("out of memory", "insufficient", "error code: 6", ": 6 :")
+# Match "oom" as a whole word (case-insensitive) to avoid false positives from
+# words like "boom" or "room" that happen to contain the substring "oom".
+_OOM_WORD_RE = re.compile(r"\boom\b", re.IGNORECASE)
 
 
 def is_oom_error(message: str) -> bool:
     """Return True if *message* signals a GPU/DirectML out-of-memory condition."""
     lower = message.lower()
-    return any(k in lower for k in _OOM_KEYWORDS)
+    return bool(_OOM_WORD_RE.search(message)) or any(k in lower for k in _OOM_KEYWORDS)
 
 
 def _friendly_error(exc: Exception) -> str:
