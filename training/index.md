@@ -14,8 +14,11 @@ add them to the PetersPictureStyler gallery.
 | `export_cyclegan_to_onnx.ipynb` | Export the four official pretrained **CycleGAN** generators to ONNX |
 | `add_CNN_style.ipynb` | Install a trained CNN (TransformerNet) `.onnx` into the local gallery |
 | `add_GAN_style.ipynb` | Install a trained GAN (CycleGAN / AnimeGAN) `.onnx` into the local gallery |
+| `add_style_helper.ipynb` | Interactive cockpit for running `add_style_helper.py` functions |
+| `add_style_chain.ipynb` | Interactive cockpit for composing and installing a new **style chain** into `style_chains/catalog.json` |
 | `kaggle_training_helper.py` | Backend logic for the Kaggle trainer notebooks (CLI also available) |
-| `add_style_helper.py` | Backend logic for the add-style notebooks |
+| `add_style_helper.py` | Backend logic for the add-style notebooks (`add_CNN_style`, `add_GAN_style`, `add_style_helper`) |
+| `add_style_chain_helper.py` | Backend logic for `add_style_chain.ipynb` — validates chain styles against the catalog and writes the chain YAML + preview |
 
 ---
 
