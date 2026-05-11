@@ -22,7 +22,7 @@ _SUPPORTED_SUFFIXES: frozenset[str] = frozenset({".jpg", ".jpeg", ".png"})
 
 # JPEG quality used when saving styled output images.
 # Used as the default in PhotoManager.save() and imported by batch_styler.commands.
-JPEG_QUALITY: int = 92
+JPEG_QUALITY: int = 90
 
 # EXIF tag id for Orientation
 _EXIF_ORIENTATION_TAG: int = next(
