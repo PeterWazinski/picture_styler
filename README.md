@@ -49,9 +49,23 @@ Creating a new chain is fully **WYSIWYG**: switch to the *Chains* tab, click the
 
 ---
 
+## Quick Start (compiled app)
+
+1. Copy the entire `dist\PetersPictureStyler\` folder to your machine
+2. Double-click `PetersPictureStyler.exe` — no Python or dependencies needed
+3. Open a photo · pick a style · click Apply · save the result
+
+
+**Add a new style without recompiling:**
+1. Drop the style folder (containing `model.onnx`) into `PetersPictureStyler\styles\`
+2. Append the entry to `PetersPictureStyler\styles\catalog.json`
+3. Restart the app — the new style appears in the gallery
+
+---
+
 ## Batch Styler CLI
 
-You can also setup your personalized picture manipulation workflow by using the command line interface.
+You can also set up your personalized picture manipulation workflow by using the command line interface.
 
 `BatchStyler.exe` (headless, no GUI) is the power-user companion to the desktop app.  It can:
 
@@ -96,22 +110,6 @@ and `sample_images\style-chain-overviews\`.
 
 `scripts\sample_pic_slide_gen.bat` randomly styles every sample photo and assembles
 the results into an MP4 slideshow using an external `slidegen.exe`.
-
-
----
-
-
-## Quick Start with compiled app
-
-1. Copy the entire `dist\PetersPictureStyler\` folder to your machine
-2. Double-click `PetersPictureStyler.exe` — no Python or dependencies needed
-3. Open a photo · pick a style · click Apply · save the result
-
-
-**Add a new style without recompiling:**
-1. Drop the style folder (containing `model.onnx`) into `PetersPictureStyler\styles\`
-2. Append the entry to `PetersPictureStyler\styles\catalog.json`
-3. Restart the app — the new style appears in the gallery
 
 ---
 
