@@ -2,9 +2,13 @@
 <a name="readme"></a>
 # Peter's Picture Styler
 
-**Peter's Picture Styler** is a Windows desktop application that reimagines your photos as paintings — using fast neural style transfer to apply the visual character of famous artists to any image in seconds.
+**Peter's Picture Styler** is a Windows and macOS desktop application that reimagines your photos as paintings — using fast neural style transfer to apply the visual character of famous artists to any image in seconds.
 
-Under the hood every model runs through ONNX Runtime with optional DirectML GPU acceleration.  No GPU is required to use the app, and no Python knowledge is needed: just copy the compiled folder and double-click.
+It is designed as a photo manipulation tool for end users who want to work on their photos artistically, rather than a proof of concept for neural style transfer. It runs on any ordinary laptop — no GPU, no Python installation, and no developer knowledge required.
+
+![Sample output: macro shot of a dandelion transformed with neural style transfer](sample_images/nature_pics/c-puste.jpg)
+
+## Overview
 
 ### Styles
 
@@ -38,50 +42,16 @@ Creating a new chain is fully **WYSIWYG**: switch to the *Chains* tab, click the
 - **Tiled inference** — handles large photos without running out of GPU memory
 - **Strength slider** — blend between original and styled result (0 % – 300 %)
 - **Batch Styler CLI** — apply styles or chains to single images, iterate randomly over directories, or generate overview contact sheets — all headless, no GUI
-- **Portable exe** — copy `dist\PetersPictureStyler\` and double-click, no install needed
+- **Portable exe** — after compilation just copy `dist\PetersPictureStyler\` and double-click, no install needed
 - **Extensible** — train new styles on Kaggle (free GPU) and drop them in without recompiling
-
----
-
-## Quick Start (compiled app)
-
-1. Copy the entire `dist\PetersPictureStyler\` folder to your machine
-2. Double-click `PetersPictureStyler.exe` — no Python or dependencies needed
-3. Open a photo · pick a style · click Apply · save the result
-
-**Add a new style without recompiling:**
-1. Drop the style folder (containing `model.onnx`) into `PetersPictureStyler\styles\`
-2. Append the entry to `PetersPictureStyler\styles\catalog.json`
-3. Restart the app — the new style appears in the gallery
-
----
-
-## Run from Source
-
-```powershell
-# 1. Create venv and install dependencies
-python -m venv .venv
-.venv\Scripts\pip install -e ".[stylist]"
-
-# 2. Launch
-.venv\Scripts\python.exe main_image_styler.py
-```
-
----
-
-## Build the App
-
-```powershell
-.\compile.ps1        # produces dist\PetersPictureStyler\
-```
-
-Requires PyInstaller in the venv (`pip install pyinstaller`). torch/torchvision are excluded — inference uses ONNX Runtime only.
-
-The build produces a **directory** (not a single exe). The `styles\` folder is copied in after compilation so styles remain editable without recompiling. Intermediate stub EXEs at `dist\` root are removed automatically by the spec file.
+- **Built-in ONNX Runtime** — the app comes with ONNX Runtime and supports DirectML GPU acceleration
+  - **Runs on Windows and macOS** — both platforms are supported, see `compile-mac.sh`
 
 ---
 
 ## Batch Styler CLI
+
+You can also setup your personalized picture manipulation workflow by using the command line interface.
 
 `BatchStyler.exe` (headless, no GUI) is the power-user companion to the desktop app.  It can:
 
@@ -126,6 +96,50 @@ and `sample_images\style-chain-overviews\`.
 
 `scripts\sample_pic_slide_gen.bat` randomly styles every sample photo and assembles
 the results into an MP4 slideshow using an external `slidegen.exe`.
+
+
+---
+
+
+## Quick Start with compiled app
+
+1. Copy the entire `dist\PetersPictureStyler\` folder to your machine
+2. Double-click `PetersPictureStyler.exe` — no Python or dependencies needed
+3. Open a photo · pick a style · click Apply · save the result
+
+
+**Add a new style without recompiling:**
+1. Drop the style folder (containing `model.onnx`) into `PetersPictureStyler\styles\`
+2. Append the entry to `PetersPictureStyler\styles\catalog.json`
+3. Restart the app — the new style appears in the gallery
+
+---
+
+## Run from Source
+
+```powershell
+# 1. Create venv and install dependencies
+python -m venv .venv
+.venv\Scripts\pip install -e ".[stylist]"
+
+# 2. Launch
+.venv\Scripts\python.exe main_image_styler.py
+```
+
+---
+
+## Build the App
+
+```powershell
+.\compile.ps1        # produces dist\PetersPictureStyler\
+```
+
+For macOS, use `compile-mac.sh`.
+
+Requires PyInstaller in the venv (`pip install pyinstaller`). torch/torchvision are excluded — inference uses ONNX Runtime only.
+
+The build produces a **directory** (not a single exe). The `styles\` folder is copied in after compilation so styles remain editable without recompiling. Intermediate stub EXEs at `dist\` root are removed automatically by the spec file.
+
 
 ---
 
