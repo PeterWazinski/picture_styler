@@ -51,7 +51,7 @@ if (-not (Test-Path $VenvPy)) {
 
 # ── 1. Install / upgrade PyInstaller ─────────────────────────────────────
 Write-Host "`n=== Installing / upgrading PyInstaller ===" -ForegroundColor Cyan
-& $VenvPip install --upgrade pyinstaller
+& $VenvPy -m pip install --upgrade pyinstaller
 if ($LASTEXITCODE -ne 0) { throw "pip install pyinstaller failed (exit $LASTEXITCODE)" }
 
 # ── 2. Clean previous artefacts ──────────────────────────────────────────
