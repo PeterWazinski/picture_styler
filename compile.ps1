@@ -5,7 +5,7 @@
 .DESCRIPTION
     1. Installs / upgrades PyInstaller into the project venv.
     2. Cleans any previous build/ and dist/ artefacts.
-    3. Invokes PyInstaller with style_transfer.spec to produce a one-directory
+    3. Invokes PyInstaller with picture_styler.spec to produce a one-directory
        bundle: dist\PetersPictureStyler\
     4. Copies styles\ into the output directory so styles can be added later
        without recompiling.
@@ -39,7 +39,7 @@ $ErrorActionPreference = "Stop"
 $Root       = $PSScriptRoot                              # project root
 $VenvPy     = "$Root\.venv\Scripts\python.exe"
 $VenvPip    = "$Root\.venv\Scripts\pip.exe"
-$SpecFile   = "$Root\style_transfer.spec"
+$SpecFile   = "$Root\picture_styler.spec"
 $OutputDir  = "$Root\dist\PetersPictureStyler"
 $OutputExe  = "$OutputDir\PetersPictureStyler.exe"
 $BatchExe   = "$OutputDir\BatchStyler.exe"

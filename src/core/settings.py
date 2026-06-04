@@ -1,4 +1,4 @@
-"""Application settings — persisted to ~/.style_transfer/settings.json.
+"""Application settings — persisted to ~/.picture_styler/settings.json.
 
 All settings that affect inference quality or performance live here so
 they can be edited in the UI and honoured by the engine.
@@ -14,7 +14,7 @@ from typing import Any
 logger: logging.Logger = logging.getLogger(__name__)
 
 # Default location for the settings file.
-_DEFAULT_SETTINGS_PATH: Path = Path.home() / ".style_transfer" / "settings.json"
+_DEFAULT_SETTINGS_PATH: Path = Path.home() / ".picture_styler" / "settings.json"
 
 # Valid execution-provider choices.
 PROVIDER_CHOICES: tuple[str, ...] = ("auto", "cpu", "dml", "cuda")
@@ -108,7 +108,7 @@ class AppSettings:
     # ------------------------------------------------------------------
 
     def save(self, path: Path | None = None) -> None:
-        """Persist settings to *path* (default: ``~/.style_transfer/settings.json``)."""
+        """Persist settings to *path* (default: ``~/.picture_styler/settings.json``)."""
         target = path or _DEFAULT_SETTINGS_PATH
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(json.dumps(self.to_dict(), indent=2))
