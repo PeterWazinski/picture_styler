@@ -6,7 +6,7 @@
 # Description:
 #   1. Installs / upgrades PyInstaller into the project venv.
 #   2. Cleans any previous build/ and dist/ artifacts.
-#   3. Invokes PyInstaller with style_transfer.spec to produce a one-directory
+#   3. Invokes PyInstaller with picture_styler-mac.spec to produce a one-directory
 #      bundle: dist/PetersPictureStyler/
 #   4. Copies styles/ into the output directory so styles can be added later
 #      without recompiling.
@@ -38,8 +38,7 @@ set -euo pipefail
 
 Root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VenvPy="$Root/.venv/bin/python"
-VenvPip="$Root/.venv/bin/pip"
-SpecFile="$Root/style_transfer-mac.spec"
+SpecFile="$Root/picture_styler-mac.spec"
 OutputDir="$Root/dist/PetersPictureStyler-mac"
 OutputExe="$OutputDir/PetersPictureStyler"
 BatchExe="$OutputDir/BatchStyler"
@@ -54,7 +53,7 @@ fi
 # ── 1. Install / upgrade PyInstaller ─────────────────────────────────────
 echo ""
 echo "$(printf '\033[36m=== Installing / upgrading PyInstaller ===\033[0m')"
-"$VenvPip" install --upgrade pyinstaller
+"$VenvPy" -m pip install --upgrade pyinstaller
 
 # ── 2. Clean previous artifacts ──────────────────────────────────────────
 echo ""
