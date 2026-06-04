@@ -249,7 +249,7 @@ Modern **diffusion models** (Stable Diffusion, DALL-E 3) with fine-tuning via:
 ### Current hardware context
 - Intel Arc 140V integrated GPU (DirectML via `onnxruntime-directml`)
 - CPU: Intel Core Ultra 7 155H (16 cores)
-- RAM: 32 GB (assumed from Endress+Hauser laptop spec)
+- RAM: 32 GB (assumed from laptop spec)
 
 ### Inference feasibility (onedir build on this laptop)
 

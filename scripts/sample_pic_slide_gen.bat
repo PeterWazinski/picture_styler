@@ -7,7 +7,7 @@ set "SAMPLE_PICS=%SCRIPT_DIR%..\sample_pics"
 set "STYLED_OUT=%SCRIPT_DIR%random_styled_images"
 set "CHAIN_DIR=%SCRIPT_DIR%..\style-chains"
 set "BATCHSTYLER=%SCRIPT_DIR%..\..\dist\PictureStyler\BatchStyler.exe"
-set "SLIDEGEN=C:\Users\i09300076\OneDrive - Endress+Hauser\DEV\Python3\slideshow-maker\dist\slidegen.exe"
+set "SLIDEGEN=%SCRIPT_DIR%slidegen.exe"
 set "SLIDESHOW=%SCRIPT_DIR%sample_pic_slideshow.mp4"
 
 :: ── sanity checks ───────────────────────────────────────────────────────────
