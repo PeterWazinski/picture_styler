@@ -1,22 +1,22 @@
 <#
 .SYNOPSIS
-    Build PetersPictureStyler app directory with PyInstaller.
+    Build PictureStyler app directory with PyInstaller.
 
 .DESCRIPTION
     1. Installs / upgrades PyInstaller into the project venv.
     2. Cleans any previous build/ and dist/ artefacts.
     3. Invokes PyInstaller with picture_styler.spec to produce a one-directory
-       bundle: dist\PetersPictureStyler\
+       bundle: dist\PictureStyler\
     4. Copies styles\ into the output directory so styles can be added later
        without recompiling.
 
-    Output: dist\PetersPictureStyler\
-              PetersPictureStyler.exe    ← double-click to run GUI
+    Output: dist\PictureStyler\
+              PictureStyler.exe       ← double-click to run GUI
               BatchStyler.exe            ← headless CLI for batch style transfer
               styles\                    ← drop new style folders here
               app.log                    ← written at runtime
 
-    Copy the entire dist\PetersPictureStyler\ folder to any Windows 10/11 x64
+    Copy the entire dist\PictureStyler\ folder to any Windows 10/11 x64
     machine.  To add a new style later, just drop its folder into styles\ and
     append the entry to styles\catalog.json — no recompile needed.
 
@@ -40,8 +40,8 @@ $Root       = $PSScriptRoot                              # project root
 $VenvPy     = "$Root\.venv\Scripts\python.exe"
 $VenvPip    = "$Root\.venv\Scripts\pip.exe"
 $SpecFile   = "$Root\picture_styler.spec"
-$OutputDir  = "$Root\dist\PetersPictureStyler"
-$OutputExe  = "$OutputDir\PetersPictureStyler.exe"
+$OutputDir  = "$Root\dist\PictureStyler"
+$OutputExe  = "$OutputDir\PictureStyler.exe"
 $BatchExe   = "$OutputDir\BatchStyler.exe"
 
 # Verify the venv exists before doing anything else
@@ -64,7 +64,7 @@ foreach ($dir in @("$Root\build", "$Root\dist")) {
 }
 
 # ── 3. Run PyInstaller ───────────────────────────────────────────────────
-Write-Host "`n=== Building PetersPictureStyler\ (this takes a few minutes) ===" -ForegroundColor Cyan
+Write-Host "`n=== Building PictureStyler\ (this takes a few minutes) ===" -ForegroundColor Cyan
 & $VenvPy -m PyInstaller $SpecFile --noconfirm
 # PyInstaller 6.x exits with code 1 after removing intermediate stub EXEs
 # (a known benign behaviour).  Treat it as success only when the real output
@@ -77,7 +77,7 @@ if ($LASTEXITCODE -ne 0 -and -not (Test-Path $OutputExe)) {
 #    PyInstaller creates intermediate single-file stubs in dist\ as part of
 #    the onedir COLLECT step.  They are not the final deliverable.
 Write-Host "`n=== Removing intermediate EXE stubs from dist\ ===" -ForegroundColor Cyan
-foreach ($stub in @("$Root\dist\PetersPictureStyler.exe", "$Root\dist\BatchStyler.exe")) {
+foreach ($stub in @("$Root\dist\PictureStyler.exe", "$Root\dist\BatchStyler.exe")) {
     if (Test-Path $stub) {
         Remove-Item -Force $stub
         Write-Host "  Removed: $stub"
@@ -119,7 +119,7 @@ if (Test-Path $OutputExe) {
     Write-Host "    $OutputExe  ($ExeMB MB)"
     Write-Host "    $BatchExe  ($BatchMB MB)"
     Write-Host ""
-    Write-Host "Copy the entire dist\PetersPictureStyler\ folder to any Windows 10/11 x64 machine." -ForegroundColor Yellow
+    Write-Host "Copy the entire dist\PictureStyler\ folder to any Windows 10/11 x64 machine." -ForegroundColor Yellow
     Write-Host "To add a new style: drop its folder into styles\ and update styles\catalog.json." -ForegroundColor Yellow
 } else {
     throw "Expected output not found: $OutputExe"

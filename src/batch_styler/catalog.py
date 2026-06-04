@@ -16,7 +16,7 @@ from pathlib import Path
 # REPO_ROOT
 # ---------------------------------------------------------------------------
 # When compiled with PyInstaller, sys.executable is BatchStyler.exe which
-# lives alongside styles\ in the dist\PetersPictureStyler\ folder.
+# lives alongside styles\ in the dist\PictureStyler\ folder.
 # In dev mode, __file__ is src/batch_styler/catalog.py → up 3 = repo root.
 
 if getattr(sys, "frozen", False):

@@ -1,8 +1,8 @@
 
 <a name="readme"></a>
-# Peter's Picture Styler
+# Picture Styler
 
-**Peter's Picture Styler** is a Windows and macOS desktop application that reimagines your photos as paintings — using fast neural style transfer to apply the visual character of famous artists to any image in seconds.
+**Picture Styler** is a Windows and macOS desktop application that reimagines your photos as paintings — using fast neural style transfer to apply the visual character of famous artists to any image in seconds.
 
 It is designed as a photo manipulation tool for end users who want to work on their photos artistically, rather than a proof of concept for neural style transfer. It runs on any ordinary laptop — no GPU, no Python installation, and no developer knowledge required.
 
@@ -42,7 +42,7 @@ Creating a new chain is fully **WYSIWYG**: switch to the *Chains* tab, click the
 - **Tiled inference** — handles large photos without running out of GPU memory
 - **Strength slider** — blend between original and styled result (0 % – 300 %)
 - **Batch Styler CLI** — apply styles or chains to single images, iterate randomly over directories, or generate overview contact sheets — all headless, no GUI
-- **Portable exe** — after compilation just copy `dist\PetersPictureStyler\` and double-click, no install needed
+- **Portable exe** — after compilation just copy `dist\PictureStyler\` and double-click, no install needed
 - **Extensible** — train new styles on Kaggle (free GPU) and drop them in without recompiling
 - **Built-in ONNX Runtime** — the app comes with ONNX Runtime and supports DirectML GPU acceleration
   - **Runs on Windows and macOS** — both platforms are supported, see `compile-mac.sh`
@@ -51,14 +51,14 @@ Creating a new chain is fully **WYSIWYG**: switch to the *Chains* tab, click the
 
 ## Quick Start (compiled app)
 
-1. Copy the entire `dist\PetersPictureStyler\` folder to your machine
-2. Double-click `PetersPictureStyler.exe` — no Python or dependencies needed
+1. Copy the entire `dist\PictureStyler\` folder to your machine
+2. Double-click `PictureStyler.exe` — no Python or dependencies needed
 3. Open a photo · pick a style · click Apply · save the result
 
 
 **Add a new style without recompiling:**
-1. Drop the style folder (containing `model.onnx`) into `PetersPictureStyler\styles\`
-2. Append the entry to `PetersPictureStyler\styles\catalog.json`
+1. Drop the style folder (containing `model.onnx`) into `PictureStyler\styles\`
+2. Append the entry to `PictureStyler\styles\catalog.json`
 3. Restart the app — the new style appears in the gallery
 
 ---
@@ -74,7 +74,7 @@ You can also set up your personalized picture manipulation workflow by using the
 - **Generate contact-sheet PDFs** showing every style (or every chain) applied to a reference photo at multiple strengths — great for picking the right look before committing
 
 ```powershell
-cd dist\PetersPictureStyler
+cd dist\PictureStyler
 
 # Apply one style to one photo
 .\BatchStyler.exe --apply-style Mosaic photos\photo.jpg --outdir C:\out
@@ -129,7 +129,7 @@ python -m venv .venv
 ## Build the App
 
 ```powershell
-.\compile.ps1        # produces dist\PetersPictureStyler\
+.\compile.ps1        # produces dist\PictureStyler\
 ```
 
 For macOS, use `compile-mac.sh`.
@@ -186,8 +186,8 @@ sample_images/  Sample photos, style chains, overview output
 assets/         App icon
 main_image_styler.py    → thin stub: launches src.stylist.app:main
 main_style_trainer.py   → thin stub: launches src.trainer.app:main
-compile.ps1             → build the portable app directory (dist\PetersPictureStyler\)
-style_transfer.spec     → PyInstaller spec (PetersPictureStyler + BatchStyler)
+compile.ps1             → build the portable app directory (dist\PictureStyler\)
+style_transfer.spec     → PyInstaller spec (PictureStyler + BatchStyler)
 ```
 
 ---

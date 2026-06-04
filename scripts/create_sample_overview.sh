@@ -3,7 +3,7 @@ set -euo pipefail
 
 # ── paths relative to this scripts/ folder ───────────────────────────────────
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-BATCHSTYLER="$ROOT/dist/PetersPictureStyler/BatchStyler"
+BATCHSTYLER="$ROOT/dist/PictureStyler/BatchStyler"
 SAMPLE_PICS="$ROOT/sample_images/sample_pics"
 STYLE_OUT="$ROOT/sample_images/style-overviews"
 CHAIN_OUT="$ROOT/sample_images/style-chain-overviews"

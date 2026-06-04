@@ -229,7 +229,7 @@ def generate_chain_previews(
     tmp_img = tmp_dir / "arch_preview.jpg"
     content_img.save(str(tmp_img), "JPEG", quality=95)
 
-    dist_chains = repo_root / "dist" / "PetersPictureStyler" / "style_chains"
+    dist_chains = repo_root / "dist" / "PictureStyler" / "style_chains"
     generated: list[str] = []
     skipped: list[str] = []
 

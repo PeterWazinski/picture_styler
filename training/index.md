@@ -1,7 +1,7 @@
 # Training — Tools & Workflow
 
 This folder contains everything needed to train new style-transfer models and
-add them to the PetersPictureStyler gallery.
+add them to the PictureStyler gallery.
 
 ---
 

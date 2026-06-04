@@ -3,7 +3,7 @@
 | File | Purpose |
 |---|---|
 | `benchmark.py` | Measures ONNX inference latency for every style model in `styles/`. Runs a warmup pass then times N inferences per model and prints a summary table. |
-| `create_sample_overview.bat` | Generates style-overview and style-chain-overview images for every sample photo via `BatchStyler.exe`. Requires a compiled `dist/PetersPictureStyler/` directory — run `compile.ps1` first. |
+| `create_sample_overview.bat` | Generates style-overview and style-chain-overview images for every sample photo via `BatchStyler.exe`. Requires a compiled `dist/PictureStyler/` directory — run `compile.ps1` first. |
 | `download_art.ipynb` | Downloads training images from Wikimedia Commons for a given painter/style set. Edit the **Configuration** cell to specify `OUTPUT_SUBDIR` and the list of artworks, then run all cells. Handles SSL-inspection proxies and API/CDN rate-limit retries automatically. |
 | `gen_palette_ico_temp.py` | Generates palette and icon assets for the application. |
 | `sample_pic_slide_gen.bat` | Applies a random style chain to every sample photo and assembles the results into an MP4 slideshow using an external `slidegen.exe`. |

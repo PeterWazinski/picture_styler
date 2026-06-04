@@ -107,7 +107,7 @@ class MainWindow(ApplyController, StyleChainController, ChainGalleryController, 
         self._current_style_name: str = ""                   # display name of selected style
         self._style_log: list[dict[str, object]] = []       # {"style": str, "strength": int}
 
-        self.setWindowTitle("Peter's Picture Stylist")
+        self.setWindowTitle("Picture Styler")
         self.resize(1200, 750)
         # Set window icon (also pins the palette icon to the Windows taskbar)
         from src.stylist.app import _make_palette_icon  # noqa: PLC0415

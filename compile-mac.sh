@@ -1,23 +1,23 @@
 #!/bin/bash
 
 #
-# Build PetersPictureStyler app for macOS with PyInstaller.
+# Build PictureStyler app for macOS with PyInstaller.
 #
 # Description:
 #   1. Installs / upgrades PyInstaller into the project venv.
 #   2. Cleans any previous build/ and dist/ artifacts.
 #   3. Invokes PyInstaller with picture_styler-mac.spec to produce a one-directory
-#      bundle: dist/PetersPictureStyler/
+#      bundle: dist/PictureStyler-mac/
 #   4. Copies styles/ into the output directory so styles can be added later
 #      without recompiling.
 #
-#   Output: dist/PetersPictureStyler/
-#             PetersPictureStyler    ← executable GUI app
+#   Output: dist/PictureStyler-mac/
+#             PictureStyler    ← executable GUI app
 #             BatchStyler            ← headless CLI for batch style transfer
 #             styles/                ← drop new style folders here
 #             app.log                ← written at runtime
 #
-#   Copy the entire dist/PetersPictureStyler/ folder to any macOS machine.
+#   Copy the entire dist/PictureStyler-mac/ folder to any macOS machine.
 #   To add a new style later, just drop its folder into styles/ and
 #   append the entry to styles/catalog.json — no recompile needed.
 #
@@ -39,8 +39,8 @@ set -euo pipefail
 Root="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 VenvPy="$Root/.venv/bin/python"
 SpecFile="$Root/picture_styler-mac.spec"
-OutputDir="$Root/dist/PetersPictureStyler-mac"
-OutputExe="$OutputDir/PetersPictureStyler"
+OutputDir="$Root/dist/PictureStyler-mac"
+OutputExe="$OutputDir/PictureStyler"
 BatchExe="$OutputDir/BatchStyler"
 
 # Verify the venv exists before doing anything else
@@ -67,7 +67,7 @@ done
 
 # ── 3. Run PyInstaller ───────────────────────────────────────────────────
 echo ""
-echo "$(printf '\033[36m=== Building PetersPictureStyler-mac/ (this takes a few minutes) ===\033[0m')"
+echo "$(printf '\033[36m=== Building PictureStyler-mac/ (this takes a few minutes) ===\033[0m')"
 "$VenvPy" -m PyInstaller "$SpecFile" --noconfirm
 
 # ── 3b. Remove intermediate EXE stubs left in dist/ root ──────────────────
@@ -75,7 +75,7 @@ echo "$(printf '\033[36m=== Building PetersPictureStyler-mac/ (this takes a few 
 #    These are not the final deliverables and should be removed.
 echo ""
 echo "$(printf '\033[36m=== Removing intermediate EXE stubs from dist/ ===\033[0m')"
-for stub in "$Root/dist/PetersPictureStyler_app" "$Root/dist/BatchStyler" "$Root/dist/PetersPictureStyler"; do
+for stub in "$Root/dist/PictureStyler_app" "$Root/dist/BatchStyler" "$Root/dist/PictureStyler"; do
     if [ -f "$stub" ]; then
         rm -f "$stub"
         echo "  Removed: $stub"
@@ -83,13 +83,13 @@ for stub in "$Root/dist/PetersPictureStyler_app" "$Root/dist/BatchStyler" "$Root
 done
 
 # ── 4. Rename GUI executable inside output directory ─────────────────────
-#    The spec file names it PetersPictureStyler_app to avoid naming collision
+#    The spec file names it PictureStyler_app to avoid naming collision
 #    with the COLLECT directory. Rename it to the final name inside the bundle.
 echo ""
 echo "$(printf '\033[36m=== Renaming GUI executable ===\033[0m')"
-if [ -f "$OutputDir/PetersPictureStyler_app" ]; then
-    mv "$OutputDir/PetersPictureStyler_app" "$OutputDir/PetersPictureStyler"
-    echo "  Renamed: PetersPictureStyler_app → PetersPictureStyler"
+if [ -f "$OutputDir/PictureStyler_app" ]; then
+    mv "$OutputDir/PictureStyler_app" "$OutputDir/PictureStyler"
+    echo "  Renamed: PictureStyler_app → PictureStyler"
 fi
 
 # ── 4b. Fix runtime library path and re-sign ────────────────────────────
@@ -100,7 +100,7 @@ fi
 #    the Qt / Python frameworks inside _internal/ keep their own signatures).
 echo ""
 echo "$(printf '\033[36m=== Adding @loader_path/_internal RPATH ===\033[0m')"
-for exe in "$OutputDir/PetersPictureStyler" "$OutputDir/BatchStyler"; do
+for exe in "$OutputDir/PictureStyler" "$OutputDir/BatchStyler"; do
     if [ -f "$exe" ]; then
         install_name_tool -add_rpath @loader_path/_internal "$exe" 2>/dev/null || true
         echo "  Added rpath to: $(basename "$exe")"
@@ -109,7 +109,7 @@ done
 
 echo ""
 echo "$(printf '\033[36m=== Re-signing executables (ad-hoc, no --deep) ===\033[0m')"
-for exe in "$OutputDir/PetersPictureStyler" "$OutputDir/BatchStyler"; do
+for exe in "$OutputDir/PictureStyler" "$OutputDir/BatchStyler"; do
     if [ -f "$exe" ]; then
         codesign -f -s - "$exe" > /dev/null 2>&1
         echo "  Signed: $(basename "$exe")"
@@ -160,7 +160,7 @@ if [ -f "$OutputExe" ]; then
     echo "    $OutputExe  ($ExeSize)"
     echo "    $BatchExe  ($BatchSize)"
     echo ""
-    echo "$(printf '\033[33mCopy the entire dist/PetersPictureStyler/ folder to any macOS machine.\033[0m')"
+    echo "$(printf '\033[33mCopy the entire dist/PictureStyler-mac/ folder to any macOS machine.\033[0m')"
     echo "$(printf '\033[33mTo add a new style: drop its folder into styles/ and update styles/catalog.json.\033[0m')"
 else
     echo "Error: Expected output not found: $OutputExe"

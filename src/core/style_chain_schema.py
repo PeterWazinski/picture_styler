@@ -6,7 +6,7 @@ headlessly via ``BatchStyler --apply-style-chain``.
 
 Example file::
 
-    # PetersPictureStyler – style chain
+    # PictureStyler – style chain
     # Created: 2026-04-30 14:32
     version: 1
     tile_size: 1024
@@ -94,7 +94,7 @@ def load_style_chain(path: Path) -> StyleChain:
 def dump_style_chain(
     log: StyleChain,
     *,
-    created_by: str = "PetersPictureStyler",
+    created_by: str = "PictureStyler",
 ) -> str:
     """Serialise a :class:`StyleChain` to a YAML string.
 

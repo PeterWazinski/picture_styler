@@ -142,7 +142,7 @@ def show_credits(parent: QWidget) -> None:
     _show_link_dialog(
         parent,
         "Credits",
-        "<b>Peter's Picture Stylist</b><br><br>"
+        "<b>Picture Styler</b><br><br>"
         "Pretrained ONNX models courtesy of:<br>"
         "&nbsp;&nbsp;<em>yakhyo/fast-neural-style-transfer</em> (MIT) &mdash; Fast Neural Style Transfer<br>"
         "&nbsp;&nbsp;<em>igreat/fast-style-transfer</em> (MIT) &mdash; Fast Neural Style Transfer<br><br>"

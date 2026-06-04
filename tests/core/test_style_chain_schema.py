@@ -144,10 +144,10 @@ class TestDumpStyleChain:
         ]
 
     def test_header_comment_present(self) -> None:
-        """Output starts with the PetersPictureStyler comment header."""
+        """Output starts with the PictureStyler comment header."""
         chain = StyleChain(steps=[ChainStep(style="Test", strength=100)])
         yaml_str = dump_style_chain(chain)
-        assert yaml_str.startswith("# PetersPictureStyler")
+        assert yaml_str.startswith("# PictureStyler")
         assert "# Created:" in yaml_str
 
     def test_optional_fields_omitted_when_none(self) -> None:

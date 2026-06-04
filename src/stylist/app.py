@@ -45,7 +45,7 @@ def _log_path() -> Path:
     """Return a writable path for the application log file.
 
     When frozen the log is placed next to the ``.exe`` inside the app
-    directory (``PetersPictureStyler\\app.log``).
+    directory (``PictureStyler\\app.log``).
     """
     if getattr(sys, "frozen", False):
         return Path(sys.executable).parent / "app.log"
@@ -122,7 +122,7 @@ def main() -> int:
     """Create the Qt application, build the main window, and run the event loop."""
     _setup_logging()
     app = QApplication(sys.argv)
-    app.setApplicationName("Peter's Picture Stylist")
+    app.setApplicationName("Picture Styler")
     app.setApplicationVersion("0.4.0")
     app.setWindowIcon(_make_palette_icon())
 

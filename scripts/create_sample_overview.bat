@@ -3,7 +3,7 @@ setlocal enabledelayedexpansion
 
 :: ── paths relative to this scripts\ folder ─────────────────────────────────
 set "ROOT=%~dp0.."
-set "BATCHSTYLER=%ROOT%\dist\PetersPictureStyler\BatchStyler.exe"
+set "BATCHSTYLER=%ROOT%\dist\PictureStyler\BatchStyler.exe"
 set "SAMPLE_PICS=%ROOT%\sample_images\sample_pics"
 set "STYLE_OUT=%ROOT%\sample_images\style-overviews"
 set "CHAIN_OUT=%ROOT%\sample_images\style-chain-overviews"
