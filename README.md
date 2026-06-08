@@ -6,7 +6,10 @@
 
 It is designed as a photo manipulation tool for end users who want to work on their photos artistically, rather than a proof of concept for neural style transfer. It runs on any ordinary laptop — no GPU, no Python installation, and no developer knowledge required.
 
-![Sample output: macro shot of a dandelion transformed with neural style transfer](sample_images/nature_pics/c-puste.jpg)
+
+<p align="center">
+<img src="sample_images/nature_pics/c-puste.jpg" alt="Sample output: macro shot of a dandelion transformed with neural style transfer" width="50%">
+</p>
 
 ## Overview
 
@@ -109,7 +112,7 @@ Full option reference: `.\BatchStyler.exe --help`
 and `sample_images\style-chain-overviews\`.
 
 `scripts\sample_pic_slide_gen.bat` randomly styles every sample photo and assembles
-the results into an MP4 slideshow using an external `slidegen.exe`.
+the results into an MP4 slideshow using the bundled `scripts\slidegen.exe`.
 
 ---
 
@@ -187,7 +190,7 @@ assets/         App icon
 main_image_styler.py    → thin stub: launches src.stylist.app:main
 main_style_trainer.py   → thin stub: launches src.trainer.app:main
 compile.ps1             → build the portable app directory (dist\PictureStyler\)
-style_transfer.spec     → PyInstaller spec (PictureStyler + BatchStyler)
+picture_styler.spec     → PyInstaller spec (PictureStyler + BatchStyler)
 ```
 
 ---
