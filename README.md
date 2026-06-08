@@ -141,6 +141,14 @@ Requires PyInstaller in the venv (`pip install pyinstaller`). torch/torchvision 
 
 The build produces a **directory** (not a single exe). The `styles\` folder is copied in after compilation so styles remain editable without recompiling. Intermediate stub EXEs at `dist\` root are removed automatically by the spec file.
 
+## Release
+
+Download the latest published build from the GitHub releases page:
+
+- [Latest release (ZIP assets)](https://github.com/PeterWazinski/style_transfer/releases/latest)
+
+Each release includes downloadable `.zip` files in the **Assets** section.
+
 
 ---
 
